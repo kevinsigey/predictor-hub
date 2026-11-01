@@ -1,0 +1,9 @@
+[Unit]
+Description=Every minute: claim Algo Trade Hub re-run triggers
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target

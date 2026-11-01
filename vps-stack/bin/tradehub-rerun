@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Claims Algo Trade Hub re-run triggers (trade-hub phase-2 spec §4.3).
+#
+# The Health page's Re-run button makes the tradehub API drop <job>.json into the
+# shared cache volume (host path: volumes/tradehub-cache/rerun/). This watcher runs
+# every minute (systemd/tradehub-rerun.timer), and for each pending trigger:
+#   1. skips the job while its scheduled unit is already running it (the trigger
+#      stays for the next tick -- a re-run must never stack on the hourly pass);
+#   2. CLAIMS the trigger by moving it into done/ BEFORE starting the job, so a
+#      crash or a second tick can never fire the same request twice. The archived
+#      file is the audit record: who asked, and when;
+#   3. runs the job the same way the timers do (bin/tradehub-job).
+set -uo pipefail
+STACK_DIR=${STACK_DIR:-/opt/stack}
+RERUN_DIR="$STACK_DIR/volumes/tradehub-cache/rerun"
+DONE_DIR="$RERUN_DIR/done"
+
+mkdir -p "$DONE_DIR" || exit 0
+
+for job in scan settle; do
+  trigger="$RERUN_DIR/$job.json"
+  [ -f "$trigger" ] || continue
+  if systemctl is-active --quiet "tradehub-$job.service"; then
+    logger -t tradehub-rerun "$job re-run deferred: tradehub-$job is already running"
+    continue
+  fi
+  claimed="$DONE_DIR/$job-$(date +%Y%m%d-%H%M%S).json"
+  mv "$trigger" "$claimed" || continue
+  logger -t tradehub-rerun "claimed $job re-run: $(cat "$claimed" 2>/dev/null)"
+  if "$STACK_DIR/bin/tradehub-job" "$job"; then
+    logger -t tradehub-rerun "$job re-run finished"
+  else
+    logger -t tradehub-rerun "$job re-run FAILED (see the job's own logs)"
+  fi
+done
