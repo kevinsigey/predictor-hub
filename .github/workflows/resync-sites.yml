@@ -69,8 +69,14 @@ jobs:
           git commit -m "chore: re-sync predictor-ui from hub $short"
           git push --force-with-lease origin "$branch" || git push --force origin "$branch"
           body="Automated re-vendor of packages/predictor-ui from predictor-hub $HUB_SHA (node scripts/sync-ui.mjs --from). Page content is unchanged unless the package's change says otherwise. Merge through the usual gate; this workflow never merges."
-          if gh pr view "$branch" --json state -q .state 2>/dev/null | grep -q OPEN; then
-            gh pr edit "$branch" --title "chore: re-sync predictor-ui from hub $short" --body "$body"
+          # REST, not `gh pr view/edit`: the CLI's GraphQL queries ask for org
+          # fields (login/name/slug) that need read:org, which the SITES_PAT has
+          # not been granted -- view silently failed (stderr swallowed), the
+          # script fell through to create, and create failed with "already
+          # exists" whenever a resync PR was open. REST needs only PR write.
+          existing=$(gh api "repos/{owner}/{repo}/pulls?state=open&head={owner}:$branch" --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/{owner}/{repo}/pulls/$existing" -f title="chore: re-sync predictor-ui from hub $short" -f body="$body"
           else
-            gh pr create --base main --head "$branch" --title "chore: re-sync predictor-ui from hub $short" --body "$body"
+            gh api -X POST "repos/{owner}/{repo}/pulls" -f title="chore: re-sync predictor-ui from hub $short" -f body="$body" -f head="$branch" -f base="main"
           fi
