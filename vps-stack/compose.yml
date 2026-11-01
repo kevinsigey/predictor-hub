@@ -150,9 +150,6 @@ services:
   # predictor-hub/scripts/deploy-explainer.sh runs (same name, same network)
   # with its own root-only /etc/predictor/explainer.env, so the key it uses is
   # the one Kevin typed at `golive`, never this file's shared OPENROUTER_API_KEY.
-      # Claude drafter (trade-hub phase-2 spec §2.2): set with scripts/set-vps-secret.sh
-      # ANTHROPIC_API_KEY in the trade-hub repo; unset = the OpenRouter free list drafts.
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   # The profile keeps a plain `docker compose up -d` from starting a second
   # copy that would silently go live on the trade hub's key.
   predictor-explainer:
@@ -200,6 +197,9 @@ services:
       SPORTS_CFB_SITE_URL: ${SPORTS_CFB_SITE_URL:-}
       # LLM reviewer; unset = no reviews, edges are still written (unreviewed).
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # Claude drafter (trade-hub phase-2 spec §2.2): set it in .env (set-vps-secret.sh
+      # ANTHROPIC_API_KEY from the trade-hub repo); unset = the OpenRouter free list drafts.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # Keyed FRED API for ALFRED vintages (labor nowcast / Jobs Scorecard): the keyless
       # alfred/fred web hosts drop connections from this server; api.stlouisfed.org works.
       FRED_API_KEY: ${FRED_API_KEY:-}
