@@ -150,3 +150,7 @@ are already here, switched off. Turning them on is rollout step 5, rewritten for
 `algo-trade-hub-prod/docs/superpowers/plans/2026-09-25-vps-deploy.md`. Its
 Task 5 is the checklist: Supabase keys in `.env`, first deploy, uncomment the
 `trade.` block in the Caddyfile, `systemctl enable --now tradehub-scan.timer tradehub-settle.timer`.
+The Health page's Re-run button (phase-2 §4.3) additionally needs
+`systemctl enable --now tradehub-rerun.timer`: the API drops a trigger file in
+`volumes/tradehub-cache/rerun/`, and `bin/tradehub-rerun` claims it within a minute
+(archived under `rerun/done/`, which is the audit record) and runs the job.

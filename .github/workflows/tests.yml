@@ -62,4 +62,5 @@ jobs:
             tests/sync-ui.test.mjs \
             tests/teasers.test.mjs \
             vps-stack/tests/hub-caddyfile.test.mjs \
-            vps-stack/tests/odds-env.test.mjs
+            vps-stack/tests/odds-env.test.mjs \
+            vps-stack/tests/rerun.test.mjs
