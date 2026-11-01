@@ -200,6 +200,11 @@ services:
       # Claude drafter (trade-hub phase-2 spec §2.2): set it in .env (set-vps-secret.sh
       # ANTHROPIC_API_KEY from the trade-hub repo); unset = the OpenRouter free list drafts.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Gemini drafter (trade-hub, Kevin's call 2026-11-01: no Anthropic key): the free
+      # AI Studio key is now the drafter's FIRST provider; set it in .env
+      # (set-vps-secret.sh GEMINI_API_KEY from the trade-hub repo); unset = Claude /
+      # OpenRouter chain as before.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       # Keyed FRED API for ALFRED vintages (labor nowcast / Jobs Scorecard): the keyless
       # alfred/fred web hosts drop connections from this server; api.stlouisfed.org works.
       FRED_API_KEY: ${FRED_API_KEY:-}
