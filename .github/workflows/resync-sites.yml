@@ -74,7 +74,11 @@ jobs:
           # not been granted -- view silently failed (stderr swallowed), the
           # script fell through to create, and create failed with "already
           # exists" whenever a resync PR was open. REST needs only PR write.
-          existing=$(gh api "repos/{owner}/{repo}/pulls?state=open&head={owner}:$branch" --jq '.[0].number // empty')
+          # Match on head.ref client-side: the head= filter needs the CURRENT
+          # owner (kevinsigey), but {owner} expands from this checkout's remote
+          # (Kevocado/...) and the renamed-away owner matches nothing, so the
+          # lookup missed the open PR and create 422'd on "already exists".
+          existing=$(gh api "repos/{owner}/{repo}/pulls?state=open&per_page=100" --jq ".[] | select(.head.ref == \"$branch\") | .number" | head -1)
           if [ -n "$existing" ]; then
             gh api -X PATCH "repos/{owner}/{repo}/pulls/$existing" -f title="chore: re-sync predictor-ui from hub $short" -f body="$body"
           else
