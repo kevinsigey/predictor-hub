@@ -205,6 +205,16 @@ services:
       # (set-vps-secret.sh GEMINI_API_KEY from the trade-hub repo); unset = Claude /
       # OpenRouter chain as before.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # TradingAgents debate feed (trade-hub tradehub/agents): the framework runs in
+      # its own venv on the persistent /cache volume, on the same free Gemini key
+      # (its google provider reads GOOGLE_API_KEY -- set the same value under that
+      # name too, via set-vps-secret.sh GOOGLE_API_KEY). Kevin creates the venv
+      # once inside the container; see the trade-hub README's Agent debates section.
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      TRADEHUB_AGENTS_DIR: /cache/agents
+      TRADEHUB_AGENTS_PYTHON: /cache/agents-venv/bin/python
+      TRADEHUB_AGENTS_PROVIDER: google
+      TRADEHUB_AGENTS_MODEL: gemini-2.5-flash
       # Keyed FRED API for ALFRED vintages (labor nowcast / Jobs Scorecard): the keyless
       # alfred/fred web hosts drop connections from this server; api.stlouisfed.org works.
       FRED_API_KEY: ${FRED_API_KEY:-}
