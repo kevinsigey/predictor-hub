@@ -202,3 +202,58 @@ patch. The original cold-visit smoke still passes unchanged.
 - Match detail deep links: cards link to the sport front pages (the
   mockup's behaviour); teasers.js's per-game `?game=` links were not
   carried over.
+
+## Explicit Home item in every site's switcher (2026-11-01)
+
+Kevin's follow-up to the nav audit: the hub was reachable from every
+sport site only via the "Predictor" wordmark. An explicit **Home** item
+now leads the family switcher itself, on every surface that renders
+AppFrame.
+
+- `packages/predictor-ui/src/components/AppFrame.tsx` — the root cause
+  was one line: the entries builder filtered `s.sport !== "hub"` out of
+  the GlobalNav entries even though `siteLinks()` already returns the
+  hub first, labelled "Home". The filter is gone; entries are built
+  from all of `sites` in SPORT_SITES order, so the hub entry maps to
+  `{ id: "hub", label: "Home", href, sport: "hub" }` and Home renders
+  first. `GlobalNav.tsx` and `lib/sites.ts` are unchanged.
+- **Active-state decision:** exactly one element claims the current
+  page. `activeNav` now defaults to the frame's own `sport` (was:
+  `null` for a hub frame), so on hub pages the **Home entry** carries
+  `aria-current="page"` and the wordmark does not; on a sport page the
+  sport entry carries it, as before. The wordmark keeps its
+  `aria-current` escape hatch: it still fires when a caller explicitly
+  passes `activeEntry={null}` (activeNav null arises no other way).
+  Decided for the Home entry over the wordmark because the switcher is
+  where a reader looks for the current site, and the hub's own static
+  pages (index.html) already mark their Home tab current in the row.
+- `packages/predictor-ui/src/components/frame.test.tsx` — the shared
+  `sites` fixture gains the hub entry real call sites always pass
+  (first, "Home", as `siteLinks()` returns it); "links to every sport"
+  now expects 6 nav anchors. Two tests added: (a) a PL frame renders
+  Home first, pointing at the hub href, with PL — and only PL —
+  carrying aria-current (wordmark explicitly not); (b) a hub frame
+  renders Home with aria-current and the wordmark without, exactly one
+  `[aria-current="page"]` in the frame.
+- `paper.html` — its hand-written switcher gains `<a href="/">Home</a>`
+  as the first item of the `.nav-scroller` row, matching the
+  surrounding anchors exactly. No `aria-current`: Paper Trading is the
+  current page there (its own link keeps it). `tests/paper-page.test.mjs`
+  has no nav pins, so no test change was needed; `tests/hub.test.mjs`'s
+  label-sequence pin covers index.html only, which already led with
+  Home.
+
+### Tests
+
+- Hub CI list (`.github/workflows/tests.yml`): baseline **180 pass /
+  0 fail / 1 skipped** (181 tests) → after: **180 pass / 0 fail /
+  1 skipped**. No regressions; the sync suites
+  (site-sync / sync-ui / sync-ui-source) do not pin AppFrame's entries
+  and needed no re-vendoring — this repo holds no vendored copy of
+  AppFrame (the package source is the only one).
+- predictor-ui package (vitest, not part of the hub workflow):
+  baseline **712 pass** (42 files) → after: **714 pass** (the two new
+  frame tests), `tsc --noEmit` clean.
+- Downstream rollout is out of scope here: the four site repos pick
+  this up via the resync-sites workflow's re-vendoring PRs once the
+  package lands on main.

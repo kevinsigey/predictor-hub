@@ -4,6 +4,7 @@ import { AppFrame, type SiteLink } from "./AppFrame";
 import { RoundNavigator } from "./RoundNavigator";
 
 const sites: SiteLink[] = [
+  { sport: "hub", label: "Home", href: "https://example" },
   { sport: "pl", label: "PL", href: "https://pl.example" },
   { sport: "f1", label: "F1", href: "https://f1.example" },
   { sport: "nfl", label: "NFL", href: "https://sports.example/?sport=nfl" },
@@ -22,9 +23,29 @@ describe("AppFrame", () => {
   it("links to every sport and marks the current one", () => {
     render(<AppFrame sport="nfl" sportName="NFL" sites={sites} tabs={tabs} activeTab="games" onTab={() => {}}>body</AppFrame>);
     const nav = screen.getByRole("navigation", { name: "Sports" });
-    expect(nav.querySelectorAll("a")).toHaveLength(5);
+    expect(nav.querySelectorAll("a")).toHaveLength(6);
     expect(screen.getByRole("link", { name: "NFL" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "NBA" })).not.toHaveAttribute("aria-current");
+  });
+  it("leads the switcher with a Home entry to the hub, behind the current sport", () => {
+    const { container } = render(<AppFrame sport="pl" sportName="PL" sites={sites} tabs={tabs} activeTab="games" onTab={() => {}}>body</AppFrame>);
+    const nav = screen.getByRole("navigation", { name: "Sports" });
+    const first = nav.querySelectorAll("a")[0];
+    expect(first).toHaveTextContent("Home");
+    expect(first).toHaveAttribute("href", "https://example");
+    expect(screen.getByRole("link", { name: "Home" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByRole("link", { name: "PL" })).toHaveAttribute("aria-current", "page");
+    // The wordmark links home too but does not claim to be the current page:
+    // the sport entry is the one current location.
+    expect(screen.getByRole("link", { name: "Predictor" })).not.toHaveAttribute("aria-current");
+    expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+  });
+  it("marks Home current on a hub frame, not the wordmark", () => {
+    const { container } = render(<AppFrame sport="hub" sportName="Sports" sites={sites} tabs={tabs} activeTab="games" onTab={() => {}}>body</AppFrame>);
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("href", "https://example");
+    expect(screen.getByRole("link", { name: "Predictor" })).not.toHaveAttribute("aria-current");
+    expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
   it("switches pages through a real tablist", () => {
     const onTab = vi.fn();
