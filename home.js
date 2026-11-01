@@ -26,6 +26,15 @@
 // - Design-system vocabulary only: pick, Next up, Called it ✓, Missed ✗,
 //   No pick yet, Toss-up, Most likely score. Numbers are formatted —
 //   whole percents, a true minus sign, times with their zone.
+//
+// Repeat visits are stale-while-revalidate: every payload a visit fetches
+// is cached in localStorage, so the next visit paints the board from the
+// cache at once — through the same normalizers and builders as fresh
+// data, so the honesty rules cannot drift between the two paths — and
+// then revalidates in the background. A sport whose snapshot-meta still
+// carries the cached generated_at is not refetched at all; a sport whose
+// data changed is repainted in place, card by card, leaving the reader's
+// filter and scroll untouched. See the cache section below.
 
 import { pct, driverName, freshness } from "./teasers.js";
 
@@ -1267,76 +1276,166 @@ function paintDeckHead(container, head) {
   container.append(wrap);
 }
 
-// --- fetching --------------------------------------------------------------
+// --- cache -----------------------------------------------------------------
+//
+// Stale-while-revalidate storage. One localStorage entry per endpoint
+// URL under a versioned namespace: { t: fetched-at epoch ms, body: the
+// parsed JSON }. Only successful, complete responses are written — the
+// write happens in the network getter below, after response.json() has
+// resolved — and a payload whose serialized entry exceeds ~800 KB is
+// skipped (the NBA track record ships every per-pick row, several MB;
+// it simply revalidates each visit instead). Every storage touch is
+// wrapped: quota errors and privacy modes disable the cache silently
+// and must never break rendering. The helpers are pure over a
+// localStorage-shaped `store` ({ getItem, setItem, removeItem }) so the
+// test suite can drive them with a fake; a null store is a disabled
+// cache.
 
-async function getJSON(path) {
-  const response = await fetch(path, { headers: { accept: "application/json" } });
-  if (!response.ok) throw new Error(`${path} responded ${response.status}`);
-  return response.json();
-}
-const settle = (p) => p.then((v) => ({ ok: true, v }), () => ({ ok: false, v: null }));
-/** Snapshot freshness, isolated like teasers.js's metaSub: a failed meta
- *  request costs the date line, never the picks. PL has no snapshot-meta
- *  route (404, confirmed) — its freshness is the gameweek itself. */
-async function metaSub(path) {
+export const CACHE_NS = "predictor-home-v1";
+export const CACHE_MAX_CHARS = 800_000;
+
+export const cacheKey = (url) => `${CACHE_NS}:${url}`;
+
+/** The cached entry for a URL: { t, body }, or null when there is none,
+ *  when it is malformed, or when storage itself is unavailable. */
+export function readCacheEntry(store, url) {
+  if (!store) return null;
   try {
-    return freshness(await getJSON(path));
+    const raw = store.getItem(cacheKey(url));
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (!entry || typeof entry.t !== "number" || !("body" in entry)) return null;
+    return entry;
   } catch {
-    return "";
+    return null;
   }
 }
 
-async function loadPL() {
-  const [gw, table] = await Promise.all([getJSON("/pl/api/fixtures/gameweek"), settle(getJSON("/pl/api/hub/table"))]);
+/** Cache a successful payload. Returns false — and stores nothing —
+ *  when the entry is oversized or storage refuses it. */
+export function writeCacheEntry(store, url, body, now = Date.now()) {
+  if (!store) return false;
+  try {
+    const raw = JSON.stringify({ t: now, body });
+    if (raw.length > CACHE_MAX_CHARS) return false;
+    store.setItem(cacheKey(url), raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The snapshot timestamp a snapshot-meta payload carries: its
+ *  generated_at, verbatim. A live meta (null/absent generated_at) and a
+ *  malformed one both yield null — "no stamp" can never prove a sport
+ *  unchanged, so it always revalidates. */
+export function metaStamp(meta) {
+  const at = meta?.generated_at;
+  if (typeof at !== "string" || !at) return null;
+  return Number.isNaN(new Date(at).getTime()) ? null : at;
+}
+
+/** True only when both metas carry the same snapshot timestamp — the
+ *  one case where a sport's heavy endpoints may be skipped entirely. */
+export function metaMatches(cachedMeta, freshMeta) {
+  const a = metaStamp(cachedMeta);
+  const b = metaStamp(freshMeta);
+  return a !== null && b !== null && a === b;
+}
+
+/** The browser's localStorage, or null where it cannot even be touched
+ *  (privacy modes throw on access in some engines). */
+function defaultStore() {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// --- fetching --------------------------------------------------------------
+
+const settle = (p) => p.then((v) => ({ ok: true, v }), () => ({ ok: false, v: null }));
+
+/** The two getters a boot runs the loaders through. `netGet` is the
+ *  network with write-through caching: a non-OK response throws and is
+ *  never cached. `cacheGet` serves only what a previous visit cached
+ *  and throws on a miss, so a loader run through it fails exactly the
+ *  way a network loader fails — the normalizers and builders downstream
+ *  are identical for both passes. */
+function makeGetters(store) {
+  const netGet = async (path) => {
+    const response = await fetch(path, { headers: { accept: "application/json" } });
+    if (!response.ok) throw new Error(`${path} responded ${response.status}`);
+    const body = await response.json();
+    writeCacheEntry(store, path, body);
+    return body;
+  };
+  const cacheGet = async (path) => {
+    const entry = readCacheEntry(store, path);
+    if (!entry) throw new Error(`${path} not cached`);
+    return entry.body;
+  };
+  return { netGet, cacheGet };
+}
+
+async function loadPL(get) {
+  const [gw, table] = await Promise.all([get("/pl/api/fixtures/gameweek"), settle(get("/pl/api/hub/table"))]);
   const upcoming = (gw?.fixtures || []).filter((f) => !f.finished).slice(0, 2);
   const playersByFixture = {};
   await Promise.all(
     upcoming.map(async (f) => {
-      const r = await settle(getJSON(`/pl/api/fixtures/${encodeURIComponent(f.event_id)}/players`));
+      const r = await settle(get(`/pl/api/fixtures/${encodeURIComponent(f.event_id)}/players`));
       if (r.ok) playersByFixture[f.event_id] = r.v;
     }),
   );
   return normalizePL({ gw, playersByFixture, table: table.ok ? table.v : null });
 }
 
-async function loadFootball(sport) {
+async function loadFootball(sport, get) {
   const base = `/${sport}`;
-  const week = await getJSON(`${base}/api/current-week`);
+  const week = await get(`${base}/api/current-week`);
   const [games, preds, props] = await Promise.all([
-    getJSON(`${base}/api/games?season=${week.season}&week=${week.week}`),
-    getJSON(`${base}/api/predictions/${week.season}/${week.week}/batch`),
-    settle(getJSON(`${base}/api/players/${week.season}/${week.week}/props`)),
+    get(`${base}/api/games?season=${week.season}&week=${week.week}`),
+    get(`${base}/api/predictions/${week.season}/${week.week}/batch`),
+    settle(get(`${base}/api/players/${week.season}/${week.week}/props`)),
   ]);
   return normalizeFootball(sport, { week, games, preds, props: props.ok ? props.v : [] });
 }
 
-async function loadNBA() {
+async function loadNBA(get) {
   const today = new Date().toISOString().slice(0, 10);
-  const games = await getJSON(`/nba/games/week?start=${today}`);
+  const games = await get(`/nba/games/week?start=${today}`);
   const upcoming = (Array.isArray(games) ? games : []).filter((g) => !g.completed).slice(0, 4);
   const playersByGame = {};
   await Promise.all(
     upcoming.map(async (g) => {
-      const r = await settle(getJSON(`/nba/games/${encodeURIComponent(g.game_id)}/players`));
+      const r = await settle(get(`/nba/games/${encodeURIComponent(g.game_id)}/players`));
       if (r.ok) playersByGame[g.game_id] = r.v;
     }),
   );
-  const rankings = await settle(getJSON("/nba/hub/rankings"));
+  const rankings = await settle(get("/nba/hub/rankings"));
   return normalizeNBA({ games, playersByGame, rankings: rankings.ok ? rankings.v : [] });
 }
 
-async function loadF1() {
-  const races = await getJSON("/f1/api/races");
+async function loadF1(get) {
+  const races = await get("/f1/api/races");
   const race = (races || []).filter((r) => !r.completed)[0];
   let pred = null;
   if (race) {
-    const r = await settle(getJSON(`/f1/api/races/${race.season}/${race.round}/prediction`));
+    const r = await settle(get(`/f1/api/races/${race.season}/${race.round}/prediction`));
     if (r.ok) pred = r.v;
   }
   return normalizeF1({ races, pred });
 }
 
-const LOADERS = { pl: loadPL, nfl: () => loadFootball("nfl"), cfb: () => loadFootball("cfb"), nba: loadNBA, f1: loadF1 };
+function loadSport(sport, get) {
+  if (sport === "pl") return loadPL(get);
+  if (sport === "nfl" || sport === "cfb") return loadFootball(sport, get);
+  if (sport === "nba") return loadNBA(get);
+  return loadF1(get);
+}
+
 const RECORD_PATHS = {
   pl: "/pl/api/hub/track-record",
   nfl: "/nfl/api/track-record",
@@ -1344,11 +1443,32 @@ const RECORD_PATHS = {
   nba: "/nba/hub/track-record",
   f1: "/f1/api/track-record",
 };
+// PL has no snapshot-meta route (404, confirmed) — it revalidates on
+// every visit; its endpoints are the family's lightest.
 const META_PATHS = { nfl: "/nfl/api/snapshot-meta", cfb: "/cfb/api/snapshot-meta", nba: "/nba/snapshot-meta", f1: "/f1/api/snapshot-meta" };
+
+/** One sport's record through a getter; null when the payload carries
+ *  nothing the deck can frame (or the getter failed — callers settle). */
+async function loadRecord(sport, get) {
+  return normalizeRecord(sport, await get(RECORD_PATHS[sport]));
+}
 
 // --- boot ------------------------------------------------------------------
 
-const state = { sports: {}, records: {}, nbaCal: [], filter: "all", fresh: {} };
+const state = { sports: {}, records: {}, nbaCal: [], filter: "all", fresh: {}, meta: {} };
+
+// What the last render put on the page, kept so a background patch can
+// preserve the DOM nodes of cards whose content did not change:
+// card key -> { hash, node }, plus the KPI and deck-head signatures.
+const painted = { nodes: new Map(), filter: null, kpiSig: null, headSig: null };
+
+const sigOf = (x) => {
+  try {
+    return JSON.stringify(x) ?? "";
+  } catch {
+    return "";
+  }
+};
 
 function allCards() {
   return buildAllCards(state.sports);
@@ -1358,7 +1478,42 @@ function usedMatchIds(sport, cards) {
   return new Set(cards.filter((c) => c.sport === sport && c.matchId != null).map((c) => String(c.matchId)));
 }
 
-function render() {
+const cardKey = (card) => `${card.sport}|${card.view}|${card.kind}|${card.matchId ?? ""}|${card.title ?? ""}`;
+
+function paintFreshness() {
+  const fresh = document.querySelector("#freshness");
+  if (!fresh) return;
+  const bits = SPORT_ORDER.filter((s) => state.fresh[s]).map((s) => `${SPORTS_META[s].short}: ${state.fresh[s].toLowerCase()}`);
+  const text = bits.length ? `Freshness — ${bits.join(" · ")}.` : "";
+  if (fresh.textContent !== text) fresh.textContent = text;
+}
+
+/** Paint the desired card items into the grid. With `reconcile`, an
+ *  item whose key and content hash survive from the previous render
+ *  keeps its exact DOM node, and when the resulting node sequence is
+ *  already what is on the page the grid is not touched at all — a
+ *  background update for one sport cannot disturb the reader's place
+ *  in another's cards. */
+function paintItems(grid, items, reconcile) {
+  const prev = reconcile && painted.filter === state.filter ? painted.nodes : null;
+  const next = new Map();
+  const nodes = items.map((it) => {
+    const kept = prev?.get(it.key);
+    if (kept && kept.hash === it.hash) {
+      next.set(it.key, kept);
+      return kept.node;
+    }
+    const node = it.paint();
+    next.set(it.key, { hash: it.hash, node });
+    return node;
+  });
+  const unchanged = grid.children.length === nodes.length && nodes.every((n, i) => grid.children[i] === n);
+  if (!unchanged) grid.replaceChildren(...nodes);
+  painted.nodes = next;
+  painted.filter = state.filter;
+}
+
+function render({ reconcile = false } = {}) {
   const now = new Date();
   const grid = document.querySelector("#grid");
   const headBox = document.querySelector("#deckhead");
@@ -1366,10 +1521,15 @@ function render() {
   if (!grid) return;
   const cards = allCards();
   // KPIs belong to the All board; a filtered deck keeps its own header.
+  // The strip only repaints when its content actually changed, so a
+  // background patch never reflows it under the reader.
   if (kpisBox) {
-    kpisBox.replaceChildren();
-    if (state.filter === "all") {
-      for (const k of buildKpis(state.sports, now)) {
+    const kpis = state.filter === "all" ? buildKpis(state.sports, now) : [];
+    const ksig = sigOf(kpis);
+    if (ksig !== painted.kpiSig) {
+      painted.kpiSig = ksig;
+      kpisBox.replaceChildren();
+      for (const k of kpis) {
         const chip = el("span", "kpi");
         chip.append(el("b", null, k.b), document.createTextNode(k.t));
         kpisBox.append(chip);
@@ -1377,19 +1537,16 @@ function render() {
     }
     kpisBox.setAttribute("aria-busy", "false");
   }
-  let shown = [];
+  const toItem = (card) => ({ key: cardKey(card), hash: sigOf(card), paint: () => paintCard(card, now) });
+  const noPicks = () => ({ key: "__note__", hash: "no-picks", paint: () => el("p", "empty-note", "No picks yet — check back soon.") });
+  let items;
+  let head = null;
   if (state.filter === "all") {
-    paintDeckHead(headBox, null);
-    shown = cards;
-    if (!shown.length) {
-      grid.replaceChildren(el("p", "empty-note", "No picks yet — check back soon."));
-    } else {
-      grid.replaceChildren(...shown.map((c) => paintCard(c, now)));
-    }
+    items = cards.length ? cards.map(toItem) : [noPicks()];
   } else {
     const sport = state.filter;
     const st = state.sports[sport];
-    paintDeckHead(headBox, st && !st.failed ? deckHead(sport, st, state.records[sport]) : null);
+    head = st && !st.failed ? deckHead(sport, st, state.records[sport]) : null;
     if (!st || st.failed) {
       const empty = {
         sport,
@@ -1399,22 +1556,31 @@ function render() {
         note: "No picks yet — check back soon.",
         foot: "",
       };
-      grid.replaceChildren(paintCard(empty, now));
+      items = [toItem(empty)];
     } else {
       const mine = cards.filter((c) => c.sport === sport);
       const deck = buildDeckCards(sport, st, state.records[sport], state.nbaCal, usedMatchIds(sport, cards));
-      shown = [...mine, ...deck];
-      grid.replaceChildren(
-        ...(shown.length ? shown.map((c) => paintCard(c, now)) : [el("p", "empty-note", "No picks yet — check back soon.")]),
-      );
+      const shown = [...mine, ...deck];
+      items = shown.length ? shown.map(toItem) : [noPicks()];
     }
   }
-  grid.setAttribute("aria-busy", "false");
-  const fresh = document.querySelector("#freshness");
-  if (fresh) {
-    const bits = SPORT_ORDER.filter((s) => state.fresh[s]).map((s) => `${SPORTS_META[s].short}: ${state.fresh[s].toLowerCase()}`);
-    fresh.textContent = bits.length ? `Freshness — ${bits.join(" · ")}.` : "";
+  const hsig = sigOf(head);
+  if (hsig !== painted.headSig) {
+    painted.headSig = hsig;
+    paintDeckHead(headBox, head);
   }
+  paintItems(grid, items, reconcile);
+  grid.setAttribute("aria-busy", "false");
+  paintFreshness();
+}
+
+/** A background revalidation landed new data for one sport. Repaint
+ *  only what that sport can affect — in a deck view for another sport,
+ *  nothing on the page depends on it — and always by reconciliation, so
+ *  the filter selection and the reader's scroll are never touched. */
+function patchSport(sport) {
+  if (state.filter !== "all" && state.filter !== sport) return;
+  render({ reconcile: true });
 }
 
 function applyFilter(f, push = true) {
@@ -1439,38 +1605,111 @@ async function boot() {
   });
   window.addEventListener("hashchange", () => applyFilter((location.hash || "").replace("#", ""), false));
 
-  // Phase 1: the picks. Each sport settles on its own; a rejection marks
-  // the sport failed and the board renders without it.
+  const { netGet, cacheGet } = makeGetters(defaultStore());
+
+  // Pass 0 — the cache. Whatever a previous visit left behind paints
+  // immediately, normalized and built by the same code that handles
+  // fresh data, so a cached pick is held to exactly the same rules.
+  // A sport the cache cannot fully serve stays out of this paint;
+  // revalidation fills it in below. With no cache at all, nothing
+  // paints here and the first visit behaves exactly as it always has.
+  let cachePainted = false;
   await Promise.all(
     SPORT_ORDER.map(async (sport) => {
-      try {
-        state.sports[sport] = await LOADERS[sport]();
-      } catch (err) {
-        state.sports[sport] = { sport, failed: true, matches: [], players: {} };
-        console.warn(`hub home ${sport} failed`, err);
+      const [st, rec, meta] = await Promise.all([
+        settle(loadSport(sport, cacheGet)),
+        settle(loadRecord(sport, cacheGet)),
+        META_PATHS[sport] ? settle(cacheGet(META_PATHS[sport])) : Promise.resolve({ ok: false, v: null }),
+      ]);
+      if (st.ok) {
+        state.sports[sport] = st.v;
+        cachePainted = true;
+      }
+      if (rec.ok && rec.v) state.records[sport] = rec.v;
+      if (meta.ok) {
+        state.meta[sport] = meta.v;
+        const f = freshness(meta.v);
+        if (f) state.fresh[sport] = f;
       }
     }),
   );
-  render();
+  const cal0 = await settle(cacheGet("/nba/calibration"));
+  if (cal0.ok) state.nbaCal = normalizeNBAcalibration(cal0.v);
+  if (cachePainted) render();
 
-  // Phase 2: the records and freshness lines. They only feed the deck
-  // headers and performance cards, so they must never delay the board —
-  // the NBA track record in particular ships every per-pick row it has.
+  // Wave A — the picks, revalidated sport by sport. A sport with a
+  // snapshot-meta whose generated_at still matches the cached one is
+  // skipped outright: its cached picks already are the current ones.
+  // PL has no meta and always revalidates. A sport whose data moved is
+  // patched in place; a sport the network cannot reach keeps whatever
+  // the cache painted, with its as-of line.
+  const metaVerified = {};
+  await Promise.all(
+    SPORT_ORDER.map(async (sport) => {
+      if (META_PATHS[sport]) {
+        const m = await settle(netGet(META_PATHS[sport]));
+        if (m.ok) {
+          const f = freshness(m.v);
+          if (f && f !== state.fresh[sport]) {
+            state.fresh[sport] = f;
+            paintFreshness();
+          }
+          const unchanged = metaMatches(state.meta[sport], m.v);
+          state.meta[sport] = m.v;
+          if (unchanged && state.sports[sport] && !state.sports[sport].failed) {
+            metaVerified[sport] = true;
+            return;
+          }
+        } else if (state.sports[sport] && !state.sports[sport].failed) {
+          // Offline, with a cached board for this sport already up:
+          // it stays as it is rather than being marked failed.
+          metaVerified[sport] = true;
+          return;
+        }
+      }
+      const before = sigOf(state.sports[sport]);
+      try {
+        state.sports[sport] = await loadSport(sport, netGet);
+      } catch (err) {
+        if (!state.sports[sport]) {
+          state.sports[sport] = { sport, failed: true, matches: [], players: {} };
+        }
+        console.warn(`hub home ${sport} failed`, err);
+      }
+      if (cachePainted && sigOf(state.sports[sport]) !== before) patchSport(sport);
+    }),
+  );
+  if (!cachePainted) render();
+
+  // Wave B — the records and the NBA calibration curve. They only feed
+  // deck headers and performance cards, so they must never delay the
+  // board — the NBA track record in particular ships every per-pick
+  // row it has (and so is never cached; see the size cap). A sport
+  // whose snapshot verified unchanged in Wave A keeps its cached
+  // record, when it has one; anything else fetches fresh and patches.
   await Promise.all([
     ...SPORT_ORDER.map(async (sport) => {
-      const r = await settle(getJSON(RECORD_PATHS[sport]));
-      if (r.ok) state.records[sport] = normalizeRecord(sport, r.v);
+      if (metaVerified[sport] && state.records[sport]) return;
+      const before = sigOf(state.records[sport]);
+      const r = await settle(loadRecord(sport, netGet));
+      if (r.ok && r.v) {
+        state.records[sport] = r.v;
+        if (cachePainted && sigOf(r.v) !== before) patchSport(sport);
+      }
     }),
     (async () => {
-      const r = await settle(getJSON("/nba/calibration"));
-      if (r.ok) state.nbaCal = normalizeNBAcalibration(r.v);
+      if (metaVerified.nba && state.nbaCal.length) return;
+      const r = await settle(netGet("/nba/calibration"));
+      if (r.ok) {
+        const cal = normalizeNBAcalibration(r.v);
+        if (sigOf(cal) !== sigOf(state.nbaCal)) {
+          state.nbaCal = cal;
+          if (cachePainted) patchSport("nba");
+        }
+      }
     })(),
-    ...Object.entries(META_PATHS).map(async ([sport, path]) => {
-      const s = await metaSub(path);
-      if (s) state.fresh[sport] = s;
-    }),
   ]);
-  render();
+  if (!cachePainted) render();
 }
 
 // Guarded so the Node test suite can import the pure builders without a

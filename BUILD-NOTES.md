@@ -119,6 +119,78 @@ empty — the PL deck graphs the gameweek trend instead).
   58% pre-tip n=114 with the 82% rebuilt line absent; F1 Brier 0.037;
   NFL calibration card "says ~81%, lands 85%").
 
+## Stale-while-revalidate cache (follow-up, same branch)
+
+Kevin's requirement: the home page should load faster on repeat visits —
+"especially if all the predictions are already loaded, it should only
+wait to load the ones that are fresh or being updated currently."
+`home.js` now keeps every payload it fetches in localStorage and
+revalidates by snapshot, per sport:
+
+- **Storage.** One entry per endpoint URL under the namespace
+  `predictor-home-v1`, shaped `{ t: fetched-at epoch ms, body: parsed
+  JSON }`. Writes happen only in the network getter, after a response
+  has parsed — a failed or partial response is never cached. A payload
+  whose serialized entry exceeds ~800 KB is skipped: in practice that
+  is the NBA track record (several MB of per-pick rows), which simply
+  revalidates every visit. Every storage touch is try/caught; quota or
+  privacy-mode failures disable the cache silently and never break
+  rendering. The helpers (`readCacheEntry`, `writeCacheEntry`,
+  `metaStamp`, `metaMatches`) are pure over a localStorage-shaped store
+  and unit-tested with a fake.
+- **Pass 0 (the cache).** On load, each sport is first run through the
+  loaders with a cache-only getter. Whatever a previous visit cached
+  paints immediately — board and deck data alike — through the *same*
+  normalizers, builders and honesty filters as fresh data, so a cached
+  pick is held to exactly the same rules (a rebuilt pick in a cached
+  payload is still excluded/labelled). The freshness line is built from
+  the cached snapshot-metas, so a cached board carries its data's
+  as-of date. A sport the cache cannot fully serve stays out of this
+  paint and is filled in by revalidation. With no cache at all, pass 0
+  paints nothing and the visit behaves exactly as the first version
+  did (two-phase load, picks first).
+- **Revalidation.** Wave A re-checks the picks. For the four sports
+  with a snapshot-meta (NFL, CFB, NBA, F1), the cheap meta is fetched
+  first: if its `generated_at` matches the cached meta's, the sport's
+  heavy endpoints (games / predictions / props / players) *and* its
+  record are skipped entirely — an unchanged snapshot means unchanged
+  data everywhere it feeds. A live meta (null `generated_at`) carries
+  no stamp and can never match, so such a sport always revalidates.
+  PL has no snapshot-meta route and always revalidates (its endpoints
+  are the family's lightest). The NBA calibration curve rides with the
+  NBA's snapshot the same way. Note the meta request now happens
+  before a sport's picks rather than after (it is the gate); it is a
+  few hundred bytes.
+- **Patching.** When fresh data for a sport differs from what is on
+  the page (compared as serialized normalized state), only that sport
+  is repainted, by reconciliation: each rendered card is keyed
+  (sport · view · kind · match · title) and content-hashed, and a card
+  whose key and hash survive keeps its exact DOM node. The KPI strip
+  and deck head repaint only when their content changes. The filter
+  selection and scroll position are never touched by a background
+  update. A sport the network cannot reach keeps its cached board and
+  as-of line instead of being marked failed; with no cache, its empty
+  state behaves as before.
+- **TTL.** There is deliberately no time-based TTL: freshness is the
+  snapshot stamp, not the clock. A sport whose snapshot has not moved
+  is current by definition; `t` is kept in each entry for as-of
+  labelling and future policy, not consulted for expiry.
+
+Tests: five new unit tests in `tests/home.test.mjs` (round-trip,
+malformed entry, oversized skip, storage-failure tolerance,
+meta-match/mismatch/live rules). CI list: **180 pass / 0 fail /
+1 skipped** (181 tests), up from the 175/0/1 baseline — the delta is
+exactly the new tests. A new two-visit smoke harness (kept in /tmp,
+like the first) verifies the behaviour end-to-end: visit 1 renders
+cold and writes 28 cache entries; visit 2, with every heavy endpoint
+held behind a gate, paints the full board from cache before any of
+them resolves (freshness line showing the cached snapshot date), then
+— gates open — never requests a single NFL or F1 endpoint (snapshot
+unchanged, records included), refetches the NBA (snapshot moved;
+its GSW card repaints 68% → 75%) and PL (no meta; marquee updates),
+and keeps the unchanged NFL hero's DOM node identical through the
+patch. The original cold-visit smoke still passes unchanged.
+
 ## Left out / stubbed
 
 - NBA rankings card uses `/nba/hub/rankings` (verified live).

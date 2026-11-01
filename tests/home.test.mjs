@@ -15,6 +15,12 @@ import {
   deckHead,
   sparkPoints,
   calibPoints,
+  CACHE_MAX_CHARS,
+  cacheKey,
+  readCacheEntry,
+  writeCacheEntry,
+  metaStamp,
+  metaMatches,
 } from "../home.js";
 
 // Fixtures are written in the RAW shapes the five APIs serve (probed from
@@ -190,6 +196,84 @@ test("F1 shows only pre-event sources, and its deck head leads with Brier", () =
   assert.equal(rebuilt.drivers.length, 0);
   const rec = normalizeRecord("f1", { by_market: [{ market: "win", tier: "post_qualifying", n: 352, brier: 0.0373 }], calibration: { points_finish: [] }, n_resolved: 2816, n_pre_session: 1760 });
   assert.equal(deckHead("f1", {}, rec).big, "0.037");
+});
+
+// --- the stale-while-revalidate cache --------------------------------------
+//
+// The cache helpers are driven with a fake localStorage-shaped store:
+// the same { getItem, setItem, removeItem } surface the browser gives
+// home.js, with failure modes a Map cannot express added per test.
+
+const fakeStore = () => {
+  const map = new Map();
+  return {
+    map,
+    getItem: (k) => (map.has(k) ? map.get(k) : null),
+    setItem: (k, v) => map.set(k, String(v)),
+    removeItem: (k) => map.delete(k),
+  };
+};
+
+test("cache entries round-trip under the versioned namespace", () => {
+  const store = fakeStore();
+  const body = { fixtures: [{ event_id: "84" }] };
+  assert.equal(writeCacheEntry(store, "/pl/api/fixtures/gameweek", body, 1761970000000), true);
+  assert.equal(cacheKey("/pl/api/fixtures/gameweek"), "predictor-home-v1:/pl/api/fixtures/gameweek");
+  const entry = readCacheEntry(store, "/pl/api/fixtures/gameweek");
+  assert.equal(entry.t, 1761970000000);
+  assert.deepEqual(entry.body, body);
+  // A different URL is a different entry; a missing one reads as null.
+  assert.equal(readCacheEntry(store, "/nfl/api/track-record"), null);
+});
+
+test("a malformed cache entry reads as a miss, never as data", () => {
+  const store = fakeStore();
+  store.setItem(cacheKey("/x"), "not json");
+  assert.equal(readCacheEntry(store, "/x"), null);
+  store.setItem(cacheKey("/x"), JSON.stringify({ body: {} })); // no fetched-at
+  assert.equal(readCacheEntry(store, "/x"), null);
+  store.setItem(cacheKey("/x"), JSON.stringify({ t: 1 })); // no body
+  assert.equal(readCacheEntry(store, "/x"), null);
+});
+
+test("an oversized payload is skipped, not stored", () => {
+  const store = fakeStore();
+  const big = { rows: "x".repeat(CACHE_MAX_CHARS) };
+  assert.equal(writeCacheEntry(store, "/nba/hub/track-record", big), false);
+  assert.equal(readCacheEntry(store, "/nba/hub/track-record"), null);
+  assert.equal(store.map.size, 0);
+});
+
+test("storage failures disable the cache silently", () => {
+  const quota = {
+    getItem: () => null,
+    setItem: () => { throw new Error("QuotaExceededError"); },
+    removeItem: () => {},
+  };
+  assert.equal(writeCacheEntry(quota, "/x", { a: 1 }), false);
+  const broken = {
+    getItem: () => { throw new Error("SecurityError"); },
+    setItem: () => {},
+    removeItem: () => {},
+  };
+  assert.equal(readCacheEntry(broken, "/x"), null);
+  // A null store (localStorage untouchable) is a disabled cache.
+  assert.equal(writeCacheEntry(null, "/x", { a: 1 }), false);
+  assert.equal(readCacheEntry(null, "/x"), null);
+});
+
+test("metaMatches: only an identical snapshot stamp skips a refetch", () => {
+  const snap = { generated_at: "2026-11-01T00:15:26Z", source: "public_snapshot" };
+  assert.equal(metaStamp(snap), "2026-11-01T00:15:26Z");
+  assert.equal(metaMatches(snap, { generated_at: "2026-11-01T00:15:26Z", source: "public_snapshot" }), true);
+  assert.equal(metaMatches(snap, { generated_at: "2026-11-01T06:00:00Z", source: "public_snapshot" }), false);
+  // A live meta carries no stamp, and no stamp can never match: the
+  // sport revalidates rather than trusting an unprovable "unchanged".
+  assert.equal(metaStamp({ generated_at: null, source: "live" }), null);
+  assert.equal(metaMatches({ generated_at: null, source: "live" }, { generated_at: null, source: "live" }), false);
+  assert.equal(metaMatches(null, snap), false);
+  assert.equal(metaMatches(snap, undefined), false);
+  assert.equal(metaStamp({ generated_at: "not a date" }), null);
 });
 
 test("spark and calibration points stay inside their plots", () => {
