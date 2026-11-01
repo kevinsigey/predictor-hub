@@ -12,6 +12,7 @@ on:
       - 'index.html'
       - 'paper.html'
       - 'teasers.js'
+      - 'home.js'
       - 'tools/**'
       - '.github/workflows/deploy-hub.yml'
   workflow_dispatch: {}

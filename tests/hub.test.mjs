@@ -17,9 +17,12 @@ test("carries the family frame: wordmark and a switcher to every sport", () => {
   assert.match(html, /<a[^>]*class="wordmark"[^>]*>Predictor<\/a>/);
   const nav = html.match(/<nav aria-label="Sports"[\s\S]*?<\/nav>/);
   assert.ok(nav, "sport switcher nav");
-  // No Home tab any more: the wordmark is home and carries aria-current on the
-  // hub. The six entries are the same on every surface.
+  // The Home tab leads the row (Kevin's call for the landing redesign,
+  // 2026-11-01): it is the hub's own entry, marked current, ahead of the six
+  // entries every surface shares. The wordmark remains the family name —
+  // see the wordmark test below — and also carries aria-current.
   assert.deepEqual([...nav[0].matchAll(/>(\w+[\w ]*)<\/a>/g)].map((m) => m[1].trim()), [
+    "Home",
     "Premier League",
     "NFL",
     "College football",
@@ -45,9 +48,18 @@ test("carries the family frame: wordmark and a switcher to every sport", () => {
   assert.match(html, /<span class="nav-fade" aria-hidden="true"><\/span>/);
 });
 
-test("one card per sport, each in its own accent", () => {
-  const cards = [...html.matchAll(/<a class="sport pr-notch" data-sport="(\w+)"/g)].map((m) => m[1]);
-  assert.deepEqual(cards, ["pl", "f1", "nfl", "cfb", "nba"]);
+test("the landing board: filter chips for every sport, each with its real favicon", () => {
+  // The five static sport cards became a filterable board of live cards
+  // (home.js). The shell pins what the board needs to exist: one chip per
+  // sport in family order, each carrying that sport's shipped favicon —
+  // NFL and CFB have distinct icons under the sports host's /favicons/.
+  const chips = [...html.matchAll(/<button class="fbtn[^"]*" data-filter="(\w+)"/g)].map((m) => m[1]);
+  assert.deepEqual(chips, ["all", "pl", "nfl", "cfb", "nba", "f1"]);
+  for (const sub of ["pl", "nba", "f1"]) assert.match(html, new RegExp(`src="https://${sub}\\.${HOST}/favicon\\.svg"`));
+  for (const sport of ["nfl", "cfb"]) assert.match(html, new RegExp(`src="https://sports\\.${HOST}/favicons/${sport}\\.svg"`));
+  assert.match(html, /<div id="deckhead"><\/div>/);
+  assert.match(html, /<div class="grid" id="grid" aria-busy="true">/);
+  assert.match(html, /<div class="kpis" id="kpis" aria-busy="true"><\/div>/);
 });
 
 test("inlined tokens match predictor-ui's tokens.css exactly", () => {
@@ -68,12 +80,20 @@ test("the family type and stage: no Inter, no glow, no emoji icons", () => {
   assert.doesNotMatch(html, /\p{Extended_Pictographic}/u);
 });
 
-test("status is honest words, at least 12px", () => {
+test("honest words only, and nothing on the board under 12px", () => {
   assert.doesNotMatch(html, /Work in progress|walk-forward|no login required/i);
-  const status = [...html.matchAll(/<span class="status">([^<]+)<\/span>/g)].map((m) => m[1]);
-  assert.deepEqual(status, ["In season", "In season", "In season", "In season", "Preseason"]);
-  const size = html.match(/\.status\s*\{[^}]*font-size:\s*([\d.]+)rem/);
-  assert.ok(size && parseFloat(size[1]) >= 0.75, "status text is under 12px");
+  // The footer states the record framing the decks use: all counted picks
+  // headline, a late pick is labelled rather than hidden, and no edge
+  // appears without a real line. If the copy drifts, the decks' framing
+  // has drifted with it.
+  assert.match(html, /Every recorded pick counts, once per game and market, and is never overwritten/);
+  assert.match(html, /Made after kickoff/);
+  assert.match(html, /No edge is shown without a real line behind it/);
+  // The smallest board text (tags, times, footers) is 0.75rem = 12px.
+  for (const sel of [".stag", ".ctime", ".cfoot", ".deckhead .big small"]) {
+    const size = html.match(new RegExp(`\\${sel.replace(".", ".")}\\s*\\{[^}]*font-size:\\s*([\\d.]+)rem`));
+    assert.ok(size && parseFloat(size[1]) >= 0.75, `${sel} text is under 12px`);
+  }
 });
 
 test("states the honesty rule once, plainly", () => {
@@ -107,28 +127,17 @@ test("the wordmark stays the family name, not the product name", () => {
   assert.equal(wordmark[1], "Predictor");
 });
 
-test("every card has a picks teaser slot beneath it, not inside it", () => {
-  // Kevin asked for the picks "underneath the cards". A teaser with its own
-  // links cannot live inside the card's <a> -- nesting interactive content in
-  // an anchor is invalid HTML -- so the slot is a sibling in the same <li>.
-  const slots = [...html.matchAll(/<div class="teaser" data-teaser="(\w+)" aria-busy="true">/g)].map((m) => m[1]);
-  assert.deepEqual(slots, ["pl", "f1", "nfl", "cfb", "nba"]);
-
-  // And the slot must be a sibling of the card, not a descendant: an <a> that
-  // still contains "teaser" means someone nested it later.
-  for (const anchor of html.match(/<a class="sport pr-notch"[\s\S]*?<\/a>/g) || []) {
-    assert.doesNotMatch(anchor, /class="teaser"/, "a teaser was nested inside the card's anchor");
-  }
+test("the board is rendered by home.js into the grid, one link per card", () => {
+  // Cards are whole-card links painted by home.js (tests/home.test.mjs
+  // covers the builders); the shell only carries the containers. teasers.js
+  // stays in the repo — home.js imports its pct/driverName/freshness — but
+  // the hub page no longer loads it directly or renders its slots.
+  assert.doesNotMatch(html, /data-teaser=/);
+  assert.doesNotMatch(html, /class="sport pr-notch"/);
+  assert.match(html, /<div class="grid" id="grid" aria-busy="true">/);
 });
 
-test("the cards themselves are untouched by the teasers", () => {
-  const cards = [...html.matchAll(/<a class="sport pr-notch" data-sport="(\w+)"/g)].map((m) => m[1]);
-  assert.deepEqual(cards, ["pl", "f1", "nfl", "cfb", "nba"]);
-  const status = [...html.matchAll(/<span class="status">([^<]+)<\/span>/g)].map((m) => m[1]);
-  assert.deepEqual(status, ["In season", "In season", "In season", "In season", "Preseason"]);
-});
-
-test("the hub loads the teaser module", () => {
-  assert.match(html, /<script type="module" src="\.\/teasers\.js"><\/script>/);
+test("the hub loads the home module", () => {
+  assert.match(html, /<script type="module" src="\.\/home\.js"><\/script>/);
 });
 

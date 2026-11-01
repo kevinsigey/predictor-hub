@@ -238,81 +238,6 @@
   }
   .rule span { color: var(--color-pr-text-dim); }
 
-  .board {
-    display: grid;
-    gap: 0.75rem;
-    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-  /* All five in one row on wide screens, so no sport sits alone below. */
-  @media (min-width: 72rem) {
-    .board { grid-template-columns: repeat(5, 1fr); }
-  }
-
-  .sport {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    height: 100%;
-    border: 1px solid var(--color-pr-rule);
-    border-top: 3px solid var(--color-pr-accent);
-    border-radius: var(--radius-pr);
-    background: var(--color-pr-panel);
-    padding: 1rem;
-    color: inherit;
-    text-decoration: none;
-    transition: border-color 0.15s ease;
-  }
-  .sport:hover { border-color: var(--color-pr-accent); }
-  .sport-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-  .code {
-    font-family: var(--font-pr-display);
-    font-size: 2rem;
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0.02em;
-    color: var(--color-pr-accent);
-  }
-  .status {
-    white-space: nowrap;
-    border: 1px solid var(--color-pr-rule);
-    border-radius: var(--radius-pr);
-    padding: 0.125rem 0.375rem;
-    font-family: var(--font-pr-display);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--color-pr-text-dim);
-  }
-  .sport h2 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 600;
-  }
-  .sport p {
-    margin: 0;
-    flex: 1;
-    font-size: 0.875rem;
-    line-height: 1.45;
-    color: var(--color-pr-text-dim);
-  }
-  .open {
-    font-family: var(--font-pr-display);
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--color-pr-text);
-  }
-
   /* The family mark: one notched corner, like a broadcast graphic. */
   .pr-notch { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); }
   .pr-notch:focus-visible { outline-offset: -3px; }
@@ -321,82 +246,276 @@
     * { transition-duration: 0.01ms !important; }
   }
 
-  /* Picks teaser: the live opinion under each card. Sits below the card as a
-     sibling, so the card stays one big link and the teaser can hold its own
-     links to individual games.
-     The accent rides the TOP edge, matching .sport above. A thick coloured
-     left edge is the single most recognisable tell of a generated UI, and the
-     craft floor bans it above 1px; the top rule says the same thing, carries
-     the sport's colour, and is what this page already does. */
-  .slot { display: flex; flex-direction: column; gap: 0.5rem; }
-  .teaser {
-    /* flex: none is load-bearing, not tidiness. .teaser is a flex item in a
-       column .slot, and the default flex-shrink: 1 let it compress below its
-       own content: every panel measured 10-28px short (scrollHeight 102 vs
-       clientHeight 91 on PL), so the freshness line rendered BELOW the panel's
-       bottom border, outside the box it belonged to. min-height does not
-       prevent this — it only sets a floor of 4.5rem, and the content is
-       taller than that. The panel takes its natural height. */
-    flex: none;
+  /* A row-level link keeps the treatment the craft floor pins: no browser
+     underline, and an offset underline on hover. home.js makes whole cards
+     links rather than rows, but the rule stays so the treatment is the one
+     this page has always given a link that is itself a row. */
+  a.teaser-row { color: inherit; text-decoration: none; }
+  a.teaser-row:hover { text-decoration: underline; text-underline-offset: 2px; }
+
+  /* --- The landing board (home.js) ---------------------------------------
+     A Kalshi-style grid of market cards, curated from the five sport APIs
+     through the hub's own proxy paths. The accent rides each card's
+     [data-sport] override of --color-pr-accent, exactly as the old sport
+     cards did, so no new colour enters the page. Nothing here under 12px
+     (0.75rem), no gradients, no shadows: depth is the stage -> panel step. */
+  .board-title {
+    margin: 0;
+    font-family: var(--font-pr-display);
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    font-weight: 700;
+    line-height: 0.98;
+    letter-spacing: 0.01em;
+  }
+  .board-title em { font-style: normal; color: var(--color-pr-win); }
+  .board-sub {
+    margin: 0.5rem 0 0;
+    max-width: 36rem;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: var(--color-pr-text-dim);
+  }
+  .kpis { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0 0.25rem; }
+  .kpi {
+    background: var(--color-pr-panel);
+    border: 1px solid var(--color-pr-rule);
+    border-radius: var(--radius-pr);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--color-pr-text-dim);
+  }
+  .kpi b {
+    color: var(--color-pr-text);
+    font-family: var(--font-pr-display);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    margin-right: 0.3125rem;
+  }
+
+  .filters {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--color-pr-stage);
     display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.875rem 0 0.75rem;
+    border-bottom: 1px solid var(--color-pr-rule);
+  }
+  .fbtn {
+    font-family: var(--font-pr-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    background: var(--color-pr-panel);
+    color: var(--color-pr-text-dim);
+    border: 1px solid var(--color-pr-rule);
+    border-radius: 999px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .fbtn:hover { color: var(--color-pr-text); border-color: var(--color-pr-fill-mute); }
+  .fbtn.on {
+    background: var(--color-pr-text);
+    color: var(--color-pr-stage);
+    border-color: var(--color-pr-text);
+  }
+  .fav { width: 1.125rem; height: 1.125rem; border-radius: 4px; flex: none; }
+  .fbtn .fav { width: 1rem; height: 1rem; border-radius: 3px; }
+
+  /* The deck header for a filtered sport. The accent rides the TOP edge, as
+     it does on every panel this family ships — a thick coloured left edge
+     is banned by the craft floor, so the mockup's left border became a top
+     border here. */
+  .deckhead {
+    margin: 1.25rem 0 0.125rem;
+    padding: 1rem 1.125rem;
+    background: var(--color-pr-panel);
     border: 1px solid var(--color-pr-rule);
     border-top: 3px solid var(--color-pr-accent);
     border-radius: var(--radius-pr);
-    background: var(--color-pr-panel);
-    padding: 0.625rem 0.75rem;
-    min-height: 4.5rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
   }
-  .teaser-label {
+  .deckhead .t {
     font-family: var(--font-pr-display);
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--color-pr-text-faint);
+    font-size: 1.625rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
   }
-  /* Two lines, not one flex row squeezed into a ~330px column. Measured on the
-     live page at three columns: "CHI v PHI", "Tue, 29 Sep 2026 05:15" and
-     "Line CHI -4.5" each wrapped onto two lines, so a single pick read as six
-     ragged lines instead of two. The number is the thing the eye wants, so it
-     sits on the first line with the name and the confidence is the only large
-     thing on it; the kickoff and the line drop beneath as their own row. */
-  .teaser-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: baseline;
-    column-gap: 0.5rem;
-    row-gap: 0.125rem;
-    font-size: 0.875rem;
-    line-height: 1.4;
-    color: var(--color-pr-text);
-  }
-  /* Spans the full width so it starts at the left margin, under the name. */
-  .teaser-row .teaser-note,
-  .teaser-row .teaser-edge { grid-column: 1 / -1; }
-  .teaser-row a { color: inherit; text-decoration: none; }
-  .teaser-row a:hover { text-decoration: underline; text-underline-offset: 2px; }
-  /* A row that IS the link. The rule above only reaches an anchor nested
-     inside a row; when paintRow makes the row itself an <a>, none of it
-     applies and the row falls back to the browser's default underline --
-     which is the one browser surface this page themes everywhere else. Same
-     treatment, written for the element that is actually the link. */
-  a.teaser-row { color: inherit; text-decoration: none; }
-  a.teaser-row:hover { text-decoration: underline; text-underline-offset: 2px; }
-  .teaser-name { font-weight: 600; }
-  .teaser-side { color: var(--color-pr-text-dim); }
-  .teaser-num {
+  .deckhead .t .fav { width: 1.625rem; height: 1.625rem; border-radius: 5px; }
+  .deckhead .d { color: var(--color-pr-text-dim); font-size: 0.84375rem; max-width: 35rem; }
+  .deckhead .big {
     font-family: var(--font-pr-display);
-    font-size: 1rem;
+    font-size: 2.5rem;
     font-weight: 700;
     color: var(--color-pr-accent);
+    text-align: right;
   }
-  .teaser-note { font-size: 0.75rem; line-height: 1.4; color: var(--color-pr-text-faint); }
-  .teaser-edge { font-size: 0.75rem; color: var(--color-pr-lean); }
-  /* Reserved, never a spinner that outlives its data. A failed or empty
-     teaser collapses to its note rather than leaving a hole in the board. */
-  .teaser[aria-busy="true"] { color: var(--color-pr-text-faint); }
+  .deckhead .big small {
+    display: block;
+    font-family: var(--font-pr-body);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-pr-text-faint);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18.5rem, 1fr));
+    gap: 0.875rem;
+    margin-top: 1rem;
+  }
+  .card {
+    background: var(--color-pr-panel);
+    border: 1px solid var(--color-pr-rule);
+    border-radius: var(--radius-pr);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    min-height: 13.5rem;
+    color: inherit;
+    text-decoration: none;
+  }
+  .card:hover { background: var(--color-pr-panel-2); }
+  .card.wide { grid-column: span 2; }
+  @media (max-width: 40rem) {
+    .card.wide { grid-column: span 1; }
+    .grid { grid-template-columns: 1fr; }
+  }
+  .chead { display: flex; justify-content: space-between; align-items: center; gap: 0.625rem; }
+  .stag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-pr-accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4375rem;
+  }
+  .ctime { font-size: 0.75rem; color: var(--color-pr-text-faint); white-space: nowrap; }
+  .card h3 {
+    font-family: var(--font-pr-display);
+    font-size: 1.4375rem;
+    font-weight: 600;
+    line-height: 1.08;
+    margin: 0;
+  }
+  .band {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0.1875rem 0.625rem;
+    border-radius: 999px;
+    background: var(--color-pr-rank-good-bg);
+    color: var(--color-pr-rank-good-ink);
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+  .band.mod { background: var(--color-pr-rank-mid-bg); color: var(--color-pr-rank-mid-ink); }
+  .band.lean { background: var(--color-pr-rank-bad-bg); color: var(--color-pr-rank-bad-ink); }
+  .bigrow { display: flex; align-items: baseline; gap: 0.75rem; }
+  .bigpct {
+    font-family: var(--font-pr-display);
+    font-size: 3.25rem;
+    font-weight: 700;
+    line-height: 0.95;
+    color: var(--color-pr-accent);
+  }
+  .bigpct.win { color: var(--color-pr-win); }
+  .biglab { font-size: 0.875rem; color: var(--color-pr-text-dim); }
+  .biglab b { color: var(--color-pr-text); font-weight: 600; }
+  .splitbar {
+    display: flex;
+    height: 0.625rem;
+    border-radius: 99px;
+    overflow: hidden;
+    background: var(--color-pr-panel-2);
+  }
+  .splitbar i { display: block; height: 100%; }
+  .legend {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--color-pr-text-dim);
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .pills { display: flex; gap: 0.5rem; }
+  .pill {
+    flex: 1;
+    text-align: center;
+    border-radius: var(--radius-pr);
+    padding: 0.4375rem 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: var(--color-pr-panel-2);
+    border: 1px solid var(--color-pr-rule);
+    color: var(--color-pr-text-dim);
+  }
+  .pill.yes { background: var(--color-pr-rank-good-bg); color: var(--color-pr-rank-good-ink); border-color: transparent; }
+  .pill.no { background: var(--color-pr-rank-bad-bg); color: var(--color-pr-rank-bad-ink); border-color: transparent; }
+  .pill.lean { background: var(--color-pr-rank-mid-bg); color: var(--color-pr-rank-mid-ink); border-color: transparent; }
+  .meter { position: relative; height: 0.625rem; background: var(--color-pr-panel-2); border-radius: 99px; margin: 0.875rem 0 0.25rem; }
+  .meter .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--color-pr-accent); border-radius: 99px; }
+  .meter .mark { position: absolute; top: -0.25rem; width: 2px; height: 1.125rem; background: var(--color-pr-text); }
+  .rows { display: flex; flex-direction: column; gap: 0.4375rem; }
+  .prow {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.25rem 0.625rem;
+    align-items: center;
+    font-size: 0.875rem;
+  }
+  .prow .nm { font-weight: 500; }
+  .prow .nm span { color: var(--color-pr-text-faint); font-weight: 400; font-size: 0.78125rem; }
+  .prow .vl { font-family: var(--font-pr-display); font-size: 1.1875rem; font-weight: 600; }
+  .bar { height: 0.375rem; background: var(--color-pr-panel-2); border-radius: 99px; overflow: hidden; grid-column: 1 / -1; }
+  .bar i { display: block; height: 100%; background: var(--color-pr-accent); border-radius: 99px; }
+  .statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+  .statgrid .sg { background: var(--color-pr-panel-2); border-radius: var(--radius-pr); padding: 0.5rem 0.625rem; }
+  .statgrid .sg .k { font-size: 0.75rem; color: var(--color-pr-text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+  .statgrid .sg .v { font-family: var(--font-pr-display); font-size: 1.5rem; font-weight: 600; }
+  .cfoot {
+    margin-top: auto;
+    border-top: 1px solid var(--color-pr-rule);
+    padding-top: 0.5625rem;
+    font-size: 0.75rem;
+    color: var(--color-pr-text-faint);
+    display: flex;
+    justify-content: space-between;
+    gap: 0.625rem;
+    flex-wrap: wrap;
+  }
+  .cfoot .open { color: var(--color-pr-accent); font-weight: 600; }
+  svg.spark { width: 100%; height: 3.5rem; display: block; }
+  .buckets { display: flex; align-items: flex-end; gap: 0.625rem; height: 4.625rem; padding-top: 0.375rem; }
+  .bucket { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.3125rem; height: 100%; justify-content: flex-end; }
+  .bucket .col { width: 100%; max-width: 2.75rem; background: var(--color-pr-accent); border-radius: 3px 3px 0 0; }
+  .bucket .bl { font-size: 0.75rem; color: var(--color-pr-text-faint); text-align: center; }
+  .bucket .bv { font-family: var(--font-pr-display); font-size: 1rem; font-weight: 600; }
+  .note { font-size: 0.78125rem; color: var(--color-pr-text-dim); margin: 0; }
+  .empty-note { font-size: 0.9375rem; color: var(--color-pr-text-dim); margin: 0; }
+  .rulefoot {
+    border-top: 1px solid var(--color-pr-rule);
+    margin-top: 1.875rem;
+    padding-top: 0.875rem;
+    font-size: 0.78125rem;
+    color: var(--color-pr-text-faint);
+    line-height: 1.5;
+  }
 </style>
 </head>
 <body data-sport="hub">
@@ -407,6 +526,7 @@
         <a href="/" class="wordmark" aria-current="page">Predictor</a>
         <nav aria-label="Sports">
           <div class="nav-scroller">
+            <a href="/" aria-current="page">Home</a>
             <a href="https://pl.40-160-91-131.sslip.io">Premier League</a>
             <a href="https://sports.40-160-91-131.sslip.io/?sport=nfl">NFL</a>
             <a href="https://sports.40-160-91-131.sslip.io/?sport=cfb">College football</a>
@@ -444,54 +564,27 @@
   <main class="wrap">
     <p class="rule"><strong>The rule</strong> <span>Only picks made before the game starts count. A pick rebuilt afterwards is still shown, labelled as such, and never counted.</span></p>
 
-    <ul class="board">
-      <li class="slot" data-sport="pl">
-        <a class="sport pr-notch" data-sport="pl" href="https://pl.40-160-91-131.sslip.io">
-          <span class="sport-head"><span class="code">PL</span><span class="status">In season</span></span>
-          <h2>Premier League</h2>
-          <p>A pick and a most likely score for every fixture, gameweek by gameweek.</p>
-          <span class="open">Open PL →</span>
-        </a>
-        <div class="teaser" data-teaser="pl" aria-busy="true"></div>
-      </li>
-      <li class="slot" data-sport="f1">
-        <a class="sport pr-notch" data-sport="f1" href="https://f1.40-160-91-131.sslip.io">
-          <span class="sport-head"><span class="code">F1</span><span class="status">In season</span></span>
-          <h2>Formula 1</h2>
-          <p>Win, podium and points chances for every driver, before each race and during live sessions.</p>
-          <span class="open">Open F1 →</span>
-        </a>
-        <div class="teaser" data-teaser="f1" aria-busy="true"></div>
-      </li>
-      <li class="slot" data-sport="nfl">
-        <a class="sport pr-notch" data-sport="nfl" href="https://sports.40-160-91-131.sslip.io/?sport=nfl">
-          <span class="sport-head"><span class="code">NFL</span><span class="status">In season</span></span>
-          <h2>Pro football</h2>
-          <p>Weekly picks with the spread and total written out, plus player projections.</p>
-          <span class="open">Open NFL →</span>
-        </a>
-        <div class="teaser" data-teaser="nfl" aria-busy="true"></div>
-      </li>
-      <li class="slot" data-sport="cfb">
-        <a class="sport pr-notch" data-sport="cfb" href="https://sports.40-160-91-131.sslip.io/?sport=cfb">
-          <span class="sport-head"><span class="code">CFB</span><span class="status">In season</span></span>
-          <h2>College football</h2>
-          <p>Picks for each week's games, filterable by conference.</p>
-          <span class="open">Open CFB →</span>
-        </a>
-        <div class="teaser" data-teaser="cfb" aria-busy="true"></div>
-      </li>
-      <li class="slot" data-sport="nba">
-        <a class="sport pr-notch" data-sport="nba" href="https://nba.40-160-91-131.sslip.io">
-          <span class="sport-head"><span class="code">NBA</span><span class="status">Preseason</span></span>
-          <h2>Pro basketball</h2>
-          <p>Nightly picks with projected margins and totals. The record starts with the regular season.</p>
-          <span class="open">Open NBA →</span>
-        </a>
-        <div class="teaser" data-teaser="nba" aria-busy="true"></div>
-      </li>
-    </ul>
+    <h2 class="board-title">Today's predictions,<br /><em>all five models</em> on one board.</h2>
+    <p class="board-sub" id="board-sub">The latest, strongest and strangest calls from the Premier League, NFL, college football, NBA and F1 models — locked in before the events they predict, graded after.</p>
+
+    <div class="kpis" id="kpis" aria-busy="true"></div>
+
+    <div class="filters" role="group" aria-label="Filter by sport">
+      <button class="fbtn on" data-filter="all">All sports</button>
+      <button class="fbtn" data-filter="pl"><img class="fav" src="https://pl.40-160-91-131.sslip.io/favicon.svg" alt="" />Premier League</button>
+      <button class="fbtn" data-filter="nfl"><img class="fav" src="https://sports.40-160-91-131.sslip.io/favicons/nfl.svg" alt="" />NFL</button>
+      <button class="fbtn" data-filter="cfb"><img class="fav" src="https://sports.40-160-91-131.sslip.io/favicons/cfb.svg" alt="" />College football</button>
+      <button class="fbtn" data-filter="nba"><img class="fav" src="https://nba.40-160-91-131.sslip.io/favicon.svg" alt="" />NBA</button>
+      <button class="fbtn" data-filter="f1"><img class="fav" src="https://f1.40-160-91-131.sslip.io/favicon.svg" alt="" />Formula 1</button>
+    </div>
+
+    <div id="deckhead"></div>
+    <div class="grid" id="grid" aria-busy="true">
+      <p class="empty-note">Loading picks…</p>
+    </div>
+
+    <p class="rulefoot">Every recorded pick counts, once per game and market, and is never overwritten — the headline is all of them, and the pre-event subset sits beside it. A pick made after the start is labelled “Made after kickoff”, never hidden. The NBA is the family's one exception: its headline is the pre-tip-off subset. No edge is shown without a real line behind it. <span id="freshness"></span></p>
   </main>
-  <script type="module" src="./teasers.js"></script>
+  <script type="module" src="./home.js"></script>
 </body>
 </html>
