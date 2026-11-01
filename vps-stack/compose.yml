@@ -214,6 +214,10 @@ services:
       ALPACA_API_KEY: ${ALPACA_API_KEY:-}
       ALPACA_SECRET_KEY: ${ALPACA_SECRET_KEY:-}
       # Past ALFRED/FRED vintages never change: keep them across the throwaway job containers.
+      # Machine API kill switch (trade-hub phase-2 spec §1.4): exactly "on" lets
+      # key-authenticated orders place. Set it in .env AND here -- compose forwards
+      # only what this block names, so .env alone does nothing.
+      TRADEHUB_MACHINE_ORDERS: ${TRADEHUB_MACHINE_ORDERS:-}
       TRADEHUB_ALFRED_CACHE: /cache/alfred
     volumes:
       - ./volumes/tradehub-cache:/cache
