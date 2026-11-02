@@ -51,6 +51,17 @@ describe("RecordHeadline", () => {
     expect(screen.getByText(/Could plausibly be 35%.61%/)).toBeInTheDocument();
   });
 
+  it("leads with the percentage, the tally beneath it, and a rate bar over the range bar", () => {
+    render(<RecordHeadline markets={FULL.markets} mode="counted" lead="game_outcome" />);
+    // 25 of 52 = 48%: the rate is the big number, on its own hook, tally under it.
+    expect(screen.getByTestId("rate-game_outcome")).toHaveTextContent("48%");
+    expect(screen.getByText("25 of 52")).toBeInTheDocument();
+    // Two bars on the lead line: the rate itself first, then the plausible range.
+    const bars = screen.getAllByRole("img");
+    expect(bars[0]).toHaveAccessibleName("Hit rate 48%");
+    expect(bars[1]).toHaveAccessibleName(/Plausible range/);
+  });
+
   it("counts every pick and puts the pre-kickoff figure beside it", () => {
     render(<RecordHeadline markets={FULL.markets} mode="counted" lead="game_outcome" moment="tip-off" />);
     expect(screen.getByText("20 of 40 made before tip-off")).toBeInTheDocument();
@@ -205,6 +216,19 @@ describe("HowCounted", () => {
     expect(details!.textContent).toMatch(/before tip-off/);
     // The superseded exclusion must not come back through this block.
     expect(details!.textContent).not.toMatch(/not\s+counted/i);
+  });
+
+  it("shows the as-of stamp, formatted from the raw ISO timestamp", () => {
+    render(<HowCounted moment="kickoff" headline="counted" asOf="2026-11-02T16:15:00Z" />);
+    const details = screen.getByText("How this is counted").closest("details");
+    expect(details!.textContent).toMatch(/Record as of .+2026/);
+  });
+
+  it("renders no stamp for an unparseable or absent as-of", () => {
+    const { rerender } = render(<HowCounted moment="kickoff" headline="counted" asOf="not a date" />);
+    expect(screen.getByText("How this is counted").closest("details")!.textContent).not.toMatch(/Record as of/);
+    rerender(<HowCounted moment="kickoff" headline="counted" />);
+    expect(screen.getByText("How this is counted").closest("details")!.textContent).not.toMatch(/Record as of/);
   });
 });
 

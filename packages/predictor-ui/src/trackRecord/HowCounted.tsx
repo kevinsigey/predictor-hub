@@ -23,18 +23,29 @@ function modeLine(mode: HeadlineMode, moment: Moment): string {
 export function HowCounted({
   moment = "kickoff",
   headline = "counted",
+  asOf,
   children,
 }: {
   moment?: Moment;
   headline?: HeadlineMode;
+  /** ISO timestamp of the snapshot this record was read from, shown as a
+   * "Record as of …" line. Absent or unparseable renders nothing — the
+   * stamp is a courtesy, never a reason to fail the block. */
+  asOf?: string | null;
   children?: ReactNode;
 }) {
+  const asOfDate = asOf ? new Date(asOf) : null;
+  const asOfText =
+    asOfDate && !Number.isNaN(asOfDate.getTime())
+      ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(asOfDate)
+      : null;
   return (
     <details className="rounded-pr border border-pr-rule bg-pr-panel px-4 py-3 text-sm">
       <summary className="cursor-pointer font-semibold text-pr-text">How this is counted</summary>
       <div className="mt-3 flex max-w-prose flex-col gap-2 text-pr-text-dim">
         <p>{CORE}</p>
         <p>{modeLine(headline, moment)}</p>
+        {asOfText && <p>Record as of {asOfText}.</p>}
         {children}
       </div>
     </details>
