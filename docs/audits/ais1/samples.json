@@ -1,0 +1,1184 @@
+{
+  "pl": [
+    {
+      "id": "OVT3-AkFm-y0Mv",
+      "title": "Man United at Chelsea",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "side": "away_win",
+        "label": "Man United win",
+        "prob": 0.3879812124669759
+      },
+      "markets": [
+        {
+          "market": "result",
+          "model": {
+            "home_win": 0.3674753250886301,
+            "draw": 0.2445434624443941,
+            "away_win": 0.3879812124669759
+          }
+        },
+        {
+          "market": "total_goals",
+          "model_total": 2.9653847217559814,
+          "over_2_5": 0.5690096546364531,
+          "under_2_5": 0.430990345363547
+        },
+        {
+          "market": "btts",
+          "yes_prob": 0.5973670791647706
+        }
+      ],
+      "verdict": "Man United win is the pick.",
+      "read": "Chelsea's goals scored per match ranks #3 of 20 and Man United's goals conceded per match ranks #13. Chelsea's recent form (points per match) ranks #8 of 20 and Man United's recent form (points per match) ranks #18.",
+      "source": "template"
+    },
+    {
+      "id": "cNxo-AkFp-BPHN",
+      "title": "Brighton at Man City",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "side": "home_win",
+        "label": "Man City win",
+        "prob": 0.5957821676001843
+      },
+      "markets": [
+        {
+          "market": "result",
+          "model": {
+            "home_win": 0.5957821676001843,
+            "draw": 0.21010986549533714,
+            "away_win": 0.19410796690447854
+          },
+          "implied": {
+            "Man City": 0.5827506793585551,
+            "Brighton": 0.20281870156650042
+          },
+          "edge": {
+            "Man City": 0.013031488241629252,
+            "Brighton": -0.00871073466202188
+          }
+        },
+        {
+          "market": "total_goals",
+          "model_total": 3.116785168647766,
+          "over_2_5": 0.6024554002040977,
+          "under_2_5": 0.39754459979590223
+        },
+        {
+          "market": "btts",
+          "yes_prob": 0.5736935567507832
+        }
+      ],
+      "verdict": "Man City win is the pick.",
+      "read": "Man City's attack strength ranks #1 of 20 and Brighton's defence strength ranks #11. Brighton's attack strength ranks #10 of 20 and Man City's defence strength ranks #2.",
+      "source": "template"
+    },
+    {
+      "id": "npmn-AkFp-aZ7L",
+      "title": "Leeds at Bournemouth",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "side": "home_win",
+        "label": "Bournemouth win",
+        "prob": 0.5864501005890635
+      },
+      "markets": [
+        {
+          "market": "result",
+          "model": {
+            "home_win": 0.5864501005890635,
+            "draw": 0.22231409799190097,
+            "away_win": 0.19123580141903562
+          },
+          "implied": {
+            "Bournemouth": 0.46,
+            "Leeds": 0.26
+          },
+          "edge": {
+            "Bournemouth": 0.12645010058906353,
+            "Leeds": -0.06876419858096439
+          }
+        },
+        {
+          "market": "total_goals",
+          "model_total": 2.853866696357727,
+          "over_2_5": 0.5432848014742852,
+          "under_2_5": 0.4567151985257148
+        },
+        {
+          "market": "btts",
+          "yes_prob": 0.527167624195919
+        }
+      ],
+      "verdict": "Bournemouth win is the pick.",
+      "read": "Bournemouth's attack strength ranks #11 of 20 and Leeds' defence strength ranks #18. Bournemouth's goals scored per match ranks #6 of 20 and Leeds' goals conceded per match ranks #2.",
+      "source": "template"
+    },
+    {
+      "id": "r7v5-AkFp-jMva",
+      "title": "Sunderland at Coventry",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "side": "away_win",
+        "label": "Sunderland win",
+        "prob": 0.46145159100101885
+      },
+      "markets": [
+        {
+          "market": "result",
+          "model": {
+            "home_win": 0.28619497253532916,
+            "draw": 0.2523534364636523,
+            "away_win": 0.46145159100101885
+          },
+          "implied": {
+            "Coventry": 0.29788382136582736,
+            "Sunderland": 0.4143607371373079
+          },
+          "edge": {
+            "Coventry": -0.0116888488304982,
+            "Sunderland": 0.047090853863710924
+          }
+        },
+        {
+          "market": "total_goals",
+          "model_total": 2.706814765930176,
+          "over_2_5": 0.5080430217574594,
+          "under_2_5": 0.4919569782425407
+        },
+        {
+          "market": "btts",
+          "yes_prob": 0.54052778963938
+        }
+      ],
+      "verdict": "Sunderland win is the pick.",
+      "read": "Coventry's attack strength ranks #16 of 20 and Sunderland's defence strength ranks #3. Sunderland's attack strength ranks #19 of 20 and Coventry's defence strength ranks #7.",
+      "source": "template"
+    },
+    {
+      "id": "f53M-AkFp-Ycha",
+      "title": "Ipswich at Hull",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "side": "home_win",
+        "label": "Hull win",
+        "prob": 0.5071538837379878
+      },
+      "markets": [
+        {
+          "market": "result",
+          "model": {
+            "home_win": 0.5071538837379878,
+            "draw": 0.2502832953731984,
+            "away_win": 0.24256282088881398
+          },
+          "implied": {
+            "Hull": 0.3596998416472346,
+            "Ipswich": 0.35459758699709293
+          },
+          "edge": {
+            "Hull": 0.14745404209075313,
+            "Ipswich": -0.11203476610827895
+          }
+        },
+        {
+          "market": "total_goals",
+          "model_total": 2.6164056062698364,
+          "over_2_5": 0.4856806048595418,
+          "under_2_5": 0.5143193951404583
+        },
+        {
+          "market": "btts",
+          "yes_prob": 0.5100207023275893
+        }
+      ],
+      "verdict": "Hull win is the pick.",
+      "read": "Ipswich's attack strength ranks #20 of 20 and Hull's defence strength ranks #7. Hull's recent form (points per match) ranks #18 of 20 and Ipswich's recent form (points per match) ranks #8.",
+      "source": "template"
+    }
+  ],
+  "f1": [
+    {
+      "id": "2026-19-race",
+      "title": "Mexico City Grand Prix \u00b7 Race",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "Norris",
+        "prob": 0.1582
+      },
+      "markets": [
+        {
+          "market": "win",
+          "model": {
+            "Norris": 0.1582,
+            "Leclerc": 0.1173,
+            "Max Verstappen": 0.1062,
+            "Hadjar": 0.0875,
+            "Piastri": 0.0624,
+            "Russell": 0.0561,
+            "Lawson": 0.0413,
+            "Antonelli": 0.0372,
+            "Hamilton": 0.0367,
+            "Bortoleto": 0.034,
+            "Stroll": 0.0295,
+            "Hulkenberg": 0.0275,
+            "Bearman": 0.0251,
+            "Alonso": 0.024,
+            "Perez": 0.024,
+            "Bottas": 0.0237,
+            "Arvid Lindblad": 0.0216,
+            "Albon": 0.0186,
+            "Ocon": 0.0186,
+            "Colapinto": 0.0181,
+            "Gasly": 0.0132,
+            "Tsunoda": 0.0112,
+            "Sainz": 0.008
+          }
+        },
+        {
+          "market": "podium",
+          "model": {
+            "Norris": 0.4095,
+            "Leclerc": 0.3395,
+            "Max Verstappen": 0.3044,
+            "Hadjar": 0.2586,
+            "Piastri": 0.194,
+            "Russell": 0.1745,
+            "Lawson": 0.1287,
+            "Antonelli": 0.1151,
+            "Hamilton": 0.1193,
+            "Bortoleto": 0.1096,
+            "Stroll": 0.0891,
+            "Hulkenberg": 0.0837,
+            "Bearman": 0.0828,
+            "Alonso": 0.0808,
+            "Perez": 0.076,
+            "Bottas": 0.075,
+            "Arvid Lindblad": 0.0727,
+            "Albon": 0.0587,
+            "Ocon": 0.0546,
+            "Colapinto": 0.0565,
+            "Gasly": 0.043,
+            "Tsunoda": 0.042,
+            "Sainz": 0.0319
+          }
+        },
+        {
+          "market": "points",
+          "model": {
+            "Norris": 0.8101,
+            "Leclerc": 0.774,
+            "Max Verstappen": 0.7555,
+            "Hadjar": 0.7186,
+            "Piastri": 0.6456,
+            "Russell": 0.5898,
+            "Lawson": 0.4975,
+            "Antonelli": 0.4703,
+            "Hamilton": 0.4751,
+            "Bortoleto": 0.4514,
+            "Stroll": 0.3778,
+            "Hulkenberg": 0.3745,
+            "Bearman": 0.3629,
+            "Alonso": 0.3343,
+            "Perez": 0.347,
+            "Bottas": 0.3453,
+            "Arvid Lindblad": 0.3158,
+            "Albon": 0.2696,
+            "Ocon": 0.2593,
+            "Colapinto": 0.2731,
+            "Gasly": 0.2011,
+            "Tsunoda": 0.1925,
+            "Sainz": 0.1589
+          }
+        },
+        {
+          "market": "dnf",
+          "model": {
+            "Norris": 0.1491,
+            "Leclerc": 0.1544,
+            "Max Verstappen": 0.1635,
+            "Hadjar": 0.1655,
+            "Piastri": 0.1534,
+            "Russell": 0.146,
+            "Lawson": 0.1934,
+            "Antonelli": 0.1458,
+            "Hamilton": 0.1524,
+            "Bortoleto": 0.067,
+            "Stroll": 0.1958,
+            "Hulkenberg": 0.0687,
+            "Bearman": 0.1558,
+            "Alonso": 0.1896,
+            "Perez": 0.0806,
+            "Bottas": 0.0792,
+            "Arvid Lindblad": 0.1952,
+            "Albon": 0.1959,
+            "Ocon": 0.1525,
+            "Colapinto": 0.1832,
+            "Gasly": 0.195,
+            "Tsunoda": 0.1964,
+            "Sainz": 0.1888
+          }
+        }
+      ],
+      "verdict": "Norris is the pick.",
+      "read": "Norris' Recent form is avg finish P8.0 (last 5) (#6 of 23); Norris' Qualifying pace is avg grid P5.0 (last 5) (#4 of 23); Norris' Track history is avg finish P1.5 over 2 visits (#1 of 22).",
+      "source": "template"
+    },
+    {
+      "id": "2026-20-race",
+      "title": "Brazilian Grand Prix \u00b7 Race",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "Leclerc",
+        "prob": 0.1435
+      },
+      "markets": [
+        {
+          "market": "win",
+          "model": {
+            "Leclerc": 0.1435,
+            "Max Verstappen": 0.1393,
+            "Norris": 0.1146,
+            "Russell": 0.0727,
+            "Hamilton": 0.0702,
+            "Hadjar": 0.0638,
+            "Piastri": 0.0593,
+            "Bortoleto": 0.0435,
+            "Antonelli": 0.0398,
+            "Lawson": 0.033,
+            "Gasly": 0.0216,
+            "Hulkenberg": 0.0213,
+            "Arvid Lindblad": 0.021,
+            "Alonso": 0.0203,
+            "Perez": 0.0186,
+            "Colapinto": 0.0175,
+            "Ocon": 0.0172,
+            "Stroll": 0.0171,
+            "Bottas": 0.0169,
+            "Tsunoda": 0.015,
+            "Albon": 0.0128,
+            "Bearman": 0.0127,
+            "Sainz": 0.0083
+          }
+        },
+        {
+          "market": "podium",
+          "model": {
+            "Leclerc": 0.3881,
+            "Max Verstappen": 0.3877,
+            "Norris": 0.3341,
+            "Russell": 0.2147,
+            "Hamilton": 0.213,
+            "Hadjar": 0.1881,
+            "Piastri": 0.1898,
+            "Bortoleto": 0.1343,
+            "Antonelli": 0.1277,
+            "Lawson": 0.1021,
+            "Gasly": 0.0667,
+            "Hulkenberg": 0.0698,
+            "Arvid Lindblad": 0.0664,
+            "Alonso": 0.0662,
+            "Perez": 0.0557,
+            "Colapinto": 0.0531,
+            "Ocon": 0.056,
+            "Stroll": 0.0626,
+            "Bottas": 0.0531,
+            "Tsunoda": 0.0486,
+            "Albon": 0.0449,
+            "Bearman": 0.0492,
+            "Sainz": 0.0281
+          }
+        },
+        {
+          "market": "points",
+          "model": {
+            "Leclerc": 0.789,
+            "Max Verstappen": 0.8064,
+            "Norris": 0.7801,
+            "Russell": 0.6735,
+            "Hamilton": 0.6534,
+            "Hadjar": 0.6431,
+            "Piastri": 0.6401,
+            "Bortoleto": 0.5459,
+            "Antonelli": 0.525,
+            "Lawson": 0.4485,
+            "Gasly": 0.3073,
+            "Hulkenberg": 0.3246,
+            "Arvid Lindblad": 0.3072,
+            "Alonso": 0.2968,
+            "Perez": 0.2643,
+            "Colapinto": 0.2688,
+            "Ocon": 0.2771,
+            "Stroll": 0.2939,
+            "Bottas": 0.282,
+            "Tsunoda": 0.2382,
+            "Albon": 0.2229,
+            "Bearman": 0.2503,
+            "Sainz": 0.1616
+          }
+        },
+        {
+          "market": "dnf",
+          "model": {
+            "Leclerc": 0.1702,
+            "Max Verstappen": 0.1572,
+            "Norris": 0.1551,
+            "Russell": 0.1522,
+            "Hamilton": 0.1857,
+            "Hadjar": 0.1556,
+            "Piastri": 0.1518,
+            "Bortoleto": 0.0678,
+            "Antonelli": 0.1465,
+            "Lawson": 0.151,
+            "Gasly": 0.1495,
+            "Hulkenberg": 0.0716,
+            "Arvid Lindblad": 0.1547,
+            "Alonso": 0.1923,
+            "Perez": 0.083,
+            "Colapinto": 0.1534,
+            "Ocon": 0.1875,
+            "Stroll": 0.2004,
+            "Bottas": 0.0831,
+            "Tsunoda": 0.1534,
+            "Albon": 0.1986,
+            "Bearman": 0.1862,
+            "Sainz": 0.1932
+          }
+        }
+      ],
+      "verdict": "Leclerc is the pick.",
+      "read": "Leclerc's Recent form is avg finish P3.2 (last 5) (#3 of 23); Leclerc's Qualifying pace is avg grid P3.6 (last 5) (#2 of 23); Leclerc's Track history is avg finish P12.0 over 2 visits (#12 of 22).",
+      "source": "template"
+    },
+    {
+      "id": "2026-21-race",
+      "title": "Las Vegas Grand Prix \u00b7 Race",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "Leclerc",
+        "prob": 0.1283
+      },
+      "markets": [
+        {
+          "market": "win",
+          "model": {
+            "Leclerc": 0.1283,
+            "Russell": 0.1261,
+            "Max Verstappen": 0.0998,
+            "Norris": 0.0921,
+            "Antonelli": 0.0815,
+            "Piastri": 0.0591,
+            "Hadjar": 0.0547,
+            "Hamilton": 0.0414,
+            "Bortoleto": 0.0354,
+            "Lawson": 0.0315,
+            "Stroll": 0.0283,
+            "Bottas": 0.0267,
+            "Alonso": 0.0255,
+            "Arvid Lindblad": 0.024,
+            "Hulkenberg": 0.0205,
+            "Perez": 0.0189,
+            "Bearman": 0.0181,
+            "Albon": 0.017,
+            "Ocon": 0.0155,
+            "Gasly": 0.015,
+            "Colapinto": 0.0145,
+            "Tsunoda": 0.0133,
+            "Sainz": 0.0128
+          }
+        },
+        {
+          "market": "podium",
+          "model": {
+            "Leclerc": 0.3523,
+            "Russell": 0.3459,
+            "Max Verstappen": 0.295,
+            "Norris": 0.2561,
+            "Antonelli": 0.2424,
+            "Piastri": 0.1817,
+            "Hadjar": 0.1713,
+            "Hamilton": 0.1301,
+            "Bortoleto": 0.1184,
+            "Lawson": 0.1001,
+            "Stroll": 0.087,
+            "Bottas": 0.0864,
+            "Alonso": 0.0845,
+            "Arvid Lindblad": 0.0734,
+            "Hulkenberg": 0.0703,
+            "Perez": 0.0609,
+            "Bearman": 0.0615,
+            "Albon": 0.0534,
+            "Ocon": 0.0484,
+            "Gasly": 0.0475,
+            "Colapinto": 0.0479,
+            "Tsunoda": 0.0403,
+            "Sainz": 0.0452
+          }
+        },
+        {
+          "market": "points",
+          "model": {
+            "Leclerc": 0.784,
+            "Russell": 0.7996,
+            "Max Verstappen": 0.7529,
+            "Norris": 0.6943,
+            "Antonelli": 0.7099,
+            "Piastri": 0.6013,
+            "Hadjar": 0.5899,
+            "Hamilton": 0.5165,
+            "Bortoleto": 0.4938,
+            "Lawson": 0.42,
+            "Stroll": 0.3692,
+            "Bottas": 0.3736,
+            "Alonso": 0.3626,
+            "Arvid Lindblad": 0.3133,
+            "Hulkenberg": 0.3253,
+            "Perez": 0.2835,
+            "Bearman": 0.2906,
+            "Albon": 0.2529,
+            "Ocon": 0.2358,
+            "Gasly": 0.2206,
+            "Colapinto": 0.2089,
+            "Tsunoda": 0.1903,
+            "Sainz": 0.2112
+          }
+        },
+        {
+          "market": "dnf",
+          "model": {
+            "Leclerc": 0.1564,
+            "Russell": 0.1323,
+            "Max Verstappen": 0.1528,
+            "Norris": 0.1915,
+            "Antonelli": 0.1343,
+            "Piastri": 0.1904,
+            "Hadjar": 0.1575,
+            "Hamilton": 0.1508,
+            "Bortoleto": 0.0707,
+            "Lawson": 0.1813,
+            "Stroll": 0.1842,
+            "Bottas": 0.0825,
+            "Alonso": 0.1792,
+            "Arvid Lindblad": 0.1885,
+            "Hulkenberg": 0.063,
+            "Perez": 0.079,
+            "Bearman": 0.1575,
+            "Albon": 0.1916,
+            "Ocon": 0.159,
+            "Gasly": 0.2053,
+            "Colapinto": 0.1972,
+            "Tsunoda": 0.1855,
+            "Sainz": 0.1817
+          }
+        }
+      ],
+      "verdict": "Leclerc is the pick.",
+      "read": "Leclerc's Recent form is avg finish P3.2 (last 5) (#3 of 23); Leclerc's Qualifying pace is avg grid P3.6 (last 5) (#2 of 23); Leclerc's Track history is avg finish P4.0 over 2 visits (#4 of 22).",
+      "source": "template"
+    },
+    {
+      "id": "2026-22-race",
+      "title": "Qatar Grand Prix \u00b7 Race",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "Leclerc",
+        "prob": 0.1531
+      },
+      "markets": [
+        {
+          "market": "win",
+          "model": {
+            "Leclerc": 0.1531,
+            "Norris": 0.1353,
+            "Max Verstappen": 0.1048,
+            "Hamilton": 0.0756,
+            "Hadjar": 0.0602,
+            "Russell": 0.0589,
+            "Piastri": 0.0574,
+            "Antonelli": 0.0497,
+            "Lawson": 0.0363,
+            "Bortoleto": 0.0325,
+            "Hulkenberg": 0.0283,
+            "Alonso": 0.0222,
+            "Bearman": 0.0214,
+            "Ocon": 0.02,
+            "Perez": 0.0197,
+            "Arvid Lindblad": 0.0197,
+            "Stroll": 0.0191,
+            "Bottas": 0.0171,
+            "Colapinto": 0.0168,
+            "Tsunoda": 0.015,
+            "Gasly": 0.0144,
+            "Albon": 0.0129,
+            "Sainz": 0.0096
+          }
+        },
+        {
+          "market": "podium",
+          "model": {
+            "Leclerc": 0.4098,
+            "Norris": 0.3817,
+            "Max Verstappen": 0.3035,
+            "Hamilton": 0.2172,
+            "Hadjar": 0.182,
+            "Russell": 0.1843,
+            "Piastri": 0.1822,
+            "Antonelli": 0.1572,
+            "Lawson": 0.115,
+            "Bortoleto": 0.1007,
+            "Hulkenberg": 0.0928,
+            "Alonso": 0.0741,
+            "Bearman": 0.069,
+            "Ocon": 0.0637,
+            "Perez": 0.0624,
+            "Arvid Lindblad": 0.0635,
+            "Stroll": 0.0622,
+            "Bottas": 0.0575,
+            "Colapinto": 0.0538,
+            "Tsunoda": 0.0494,
+            "Gasly": 0.0426,
+            "Albon": 0.0399,
+            "Sainz": 0.0355
+          }
+        },
+        {
+          "market": "points",
+          "model": {
+            "Leclerc": 0.8154,
+            "Norris": 0.8009,
+            "Max Verstappen": 0.7621,
+            "Hamilton": 0.6768,
+            "Hadjar": 0.6145,
+            "Russell": 0.6187,
+            "Piastri": 0.6422,
+            "Antonelli": 0.5745,
+            "Lawson": 0.4666,
+            "Bortoleto": 0.438,
+            "Hulkenberg": 0.4099,
+            "Alonso": 0.3289,
+            "Bearman": 0.3057,
+            "Ocon": 0.2839,
+            "Perez": 0.3001,
+            "Arvid Lindblad": 0.2836,
+            "Stroll": 0.2933,
+            "Bottas": 0.2822,
+            "Colapinto": 0.2691,
+            "Tsunoda": 0.2474,
+            "Gasly": 0.2138,
+            "Albon": 0.1922,
+            "Sainz": 0.1802
+          }
+        },
+        {
+          "market": "dnf",
+          "model": {
+            "Leclerc": 0.1486,
+            "Norris": 0.151,
+            "Max Verstappen": 0.1578,
+            "Hamilton": 0.1531,
+            "Hadjar": 0.163,
+            "Russell": 0.1476,
+            "Piastri": 0.1551,
+            "Antonelli": 0.1491,
+            "Lawson": 0.1797,
+            "Bortoleto": 0.0714,
+            "Hulkenberg": 0.069,
+            "Alonso": 0.19,
+            "Bearman": 0.1944,
+            "Ocon": 0.1932,
+            "Perez": 0.0841,
+            "Arvid Lindblad": 0.1876,
+            "Stroll": 0.1892,
+            "Bottas": 0.0809,
+            "Colapinto": 0.1832,
+            "Tsunoda": 0.181,
+            "Gasly": 0.1778,
+            "Albon": 0.188,
+            "Sainz": 0.1878
+          }
+        }
+      ],
+      "verdict": "Leclerc is the pick.",
+      "read": "Leclerc's Recent form is avg finish P3.2 (last 5) (#3 of 23); Leclerc's Qualifying pace is avg grid P3.6 (last 5) (#2 of 23); Leclerc's Track history is avg finish P5.0 over 2 visits (#5 of 22).",
+      "source": "template"
+    },
+    {
+      "id": "2026-23-race",
+      "title": "Abu Dhabi Grand Prix \u00b7 Race",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "Max Verstappen",
+        "prob": 0.1465
+      },
+      "markets": [
+        {
+          "market": "win",
+          "model": {
+            "Max Verstappen": 0.1465,
+            "Norris": 0.1236,
+            "Leclerc": 0.1233,
+            "Hadjar": 0.0933,
+            "Russell": 0.0719,
+            "Piastri": 0.0606,
+            "Hamilton": 0.0441,
+            "Lawson": 0.0354,
+            "Bortoleto": 0.0328,
+            "Antonelli": 0.029,
+            "Hulkenberg": 0.0285,
+            "Arvid Lindblad": 0.0268,
+            "Alonso": 0.0255,
+            "Bottas": 0.0246,
+            "Perez": 0.023,
+            "Stroll": 0.0182,
+            "Ocon": 0.0166,
+            "Colapinto": 0.0152,
+            "Bearman": 0.0151,
+            "Gasly": 0.0121,
+            "Sainz": 0.0118,
+            "Albon": 0.0114,
+            "Tsunoda": 0.0107
+          }
+        },
+        {
+          "market": "podium",
+          "model": {
+            "Max Verstappen": 0.3925,
+            "Norris": 0.3511,
+            "Leclerc": 0.3418,
+            "Hadjar": 0.2827,
+            "Russell": 0.2287,
+            "Piastri": 0.1876,
+            "Hamilton": 0.1383,
+            "Lawson": 0.1141,
+            "Bortoleto": 0.1018,
+            "Antonelli": 0.0974,
+            "Hulkenberg": 0.0862,
+            "Arvid Lindblad": 0.0767,
+            "Alonso": 0.0831,
+            "Bottas": 0.0763,
+            "Perez": 0.0695,
+            "Stroll": 0.0605,
+            "Ocon": 0.0551,
+            "Colapinto": 0.0497,
+            "Bearman": 0.0493,
+            "Gasly": 0.0374,
+            "Sainz": 0.0445,
+            "Albon": 0.0403,
+            "Tsunoda": 0.0354
+          }
+        },
+        {
+          "market": "points",
+          "model": {
+            "Max Verstappen": 0.7938,
+            "Norris": 0.7887,
+            "Leclerc": 0.784,
+            "Hadjar": 0.7336,
+            "Russell": 0.6936,
+            "Piastri": 0.6389,
+            "Hamilton": 0.5301,
+            "Lawson": 0.4599,
+            "Bortoleto": 0.453,
+            "Antonelli": 0.4368,
+            "Hulkenberg": 0.3999,
+            "Arvid Lindblad": 0.3535,
+            "Alonso": 0.3852,
+            "Bottas": 0.3501,
+            "Perez": 0.3445,
+            "Stroll": 0.2957,
+            "Ocon": 0.2745,
+            "Colapinto": 0.2551,
+            "Bearman": 0.2474,
+            "Gasly": 0.1998,
+            "Sainz": 0.2181,
+            "Albon": 0.1967,
+            "Tsunoda": 0.1671
+          }
+        },
+        {
+          "market": "dnf",
+          "model": {
+            "Max Verstappen": 0.1706,
+            "Norris": 0.1496,
+            "Leclerc": 0.1544,
+            "Hadjar": 0.1735,
+            "Russell": 0.1473,
+            "Piastri": 0.146,
+            "Hamilton": 0.1506,
+            "Lawson": 0.1952,
+            "Bortoleto": 0.0659,
+            "Antonelli": 0.1556,
+            "Hulkenberg": 0.0666,
+            "Arvid Lindblad": 0.2001,
+            "Alonso": 0.15,
+            "Bottas": 0.0848,
+            "Perez": 0.0823,
+            "Stroll": 0.1483,
+            "Ocon": 0.1821,
+            "Colapinto": 0.1895,
+            "Bearman": 0.1881,
+            "Gasly": 0.1923,
+            "Sainz": 0.186,
+            "Albon": 0.1993,
+            "Tsunoda": 0.1924
+          }
+        }
+      ],
+      "verdict": "Max Verstappen is the pick.",
+      "read": "Max Verstappen's Recent form is avg finish P1.8 (last 5) (#1 of 23); Max Verstappen's Qualifying pace is avg grid P3.0 (last 5) (#1 of 23); Max Verstappen's Track history is avg finish P3.5 over 2 visits (#3 of 22).",
+      "source": "template"
+    }
+  ],
+  "nba": [
+    {
+      "id": "401909877",
+      "title": "BKN at BOS",
+      "status": "upcoming",
+      "pick_timing": "none",
+      "pick": null,
+      "markets": [],
+      "verdict": "There is no pick for this one yet.",
+      "read": "BKN's offensive rebounding ranks #30 of 30 and BOS's defensive rebounding ranks #1. BOS's shooting ranks #7 of 30 and BKN's shooting defence ranks #30.",
+      "source": "template"
+    },
+    {
+      "id": "401909878",
+      "title": "DET at NYK",
+      "status": "upcoming",
+      "pick_timing": "none",
+      "pick": null,
+      "markets": [],
+      "verdict": "There is no pick for this one yet.",
+      "read": "DET's getting to the line ranks #7 of 30 and NYK's foul discipline ranks #24. NYK's getting to the line ranks #14 of 30 and DET's foul discipline ranks #30.",
+      "source": "template"
+    },
+    {
+      "id": "401909879",
+      "title": "SAC at SAS",
+      "status": "upcoming",
+      "pick_timing": "none",
+      "pick": null,
+      "markets": [],
+      "verdict": "There is no pick for this one yet.",
+      "read": "SAC's shooting ranks #25 of 30 and SAS's shooting defence ranks #1. SAS's getting to the line ranks #8 of 30 and SAC's foul discipline ranks #22.",
+      "source": "template"
+    },
+    {
+      "id": "401909880",
+      "title": "POR at LAL",
+      "status": "upcoming",
+      "pick_timing": "none",
+      "pick": null,
+      "markets": [],
+      "verdict": "There is no pick for this one yet.",
+      "read": "POR's offensive rebounding ranks #4 of 30 and LAL's defensive rebounding ranks #25. LAL's ball security ranks #30 of 30 and POR's forcing turnovers ranks #14.",
+      "source": "template"
+    },
+    {
+      "id": "401909881",
+      "title": "MIA at ATL",
+      "status": "upcoming",
+      "pick_timing": "none",
+      "pick": null,
+      "markets": [],
+      "verdict": "There is no pick for this one yet.",
+      "read": "",
+      "source": "template"
+    }
+  ],
+  "nfl": [
+    {
+      "id": "2026_08_CAR_GB",
+      "title": "CAR at GB",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "GB",
+        "prob": 0.6407645512346046
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "GB": 0.6407645512346046,
+            "CAR": 0.35923544876539537
+          }
+        },
+        {
+          "market": "spread",
+          "model_margin": 4.718599319458008,
+          "line": "GB -3.5",
+          "model_cover_prob": 0.5370885560510039
+        },
+        {
+          "market": "total",
+          "model_total": 47.412349700927734,
+          "line": 48.5,
+          "model_over_prob": 0.46794199784116064
+        }
+      ],
+      "verdict": "GB is the pick.",
+      "read": "CAR's passing offence ranks #6 of 32 and GB's pass defence ranks #22. GB's rushing offence ranks #32 of 32 and CAR's rush defence ranks #23. The names to watch are J.Jacobs (GB) as a top rusher, J.Love (GB) as a top passer, C.Hubbard (CAR) as a top rusher.",
+      "source": "template"
+    },
+    {
+      "id": "2026_08_BAL_BUF",
+      "title": "BAL at BUF",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "BUF",
+        "prob": 0.8204979057311008
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "BUF": 0.8204979057311008,
+            "BAL": 0.17950209426889918
+          }
+        },
+        {
+          "market": "spread",
+          "model_margin": 12.006004333496094,
+          "line": "BUF -3.5",
+          "model_cover_prob": 0.7421095230088561
+        },
+        {
+          "market": "total",
+          "model_total": 49.4100341796875,
+          "line": 53.5,
+          "model_over_prob": 0.3811355708400228
+        }
+      ],
+      "verdict": "BUF is the pick.",
+      "read": "BAL's passing offence ranks #2 of 32 and BUF's pass defence ranks #26. BAL's rushing offence ranks #6 of 32 and BUF's rush defence ranks #24. The names to watch are J.Cook (BUF) as a top rusher, J.Allen (BUF) as a top passer, D.Henry (BAL) as a top rusher.",
+      "source": "template"
+    },
+    {
+      "id": "2026_08_TEN_CIN",
+      "title": "TEN at CIN",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "CIN",
+        "prob": 0.8600983037675737
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "CIN": 0.8600983037675737,
+            "TEN": 0.13990169623242632
+          }
+        },
+        {
+          "market": "spread",
+          "model_margin": 14.146002769470215,
+          "line": "CIN -10.0",
+          "model_cover_prob": 0.6242858191365129
+        },
+        {
+          "market": "total",
+          "model_total": 43.2958869934082,
+          "line": 46.5,
+          "model_over_prob": 0.4063358486781239
+        }
+      ],
+      "verdict": "CIN is the pick.",
+      "read": "CIN's passing offence ranks #13 of 32 and TEN's pass defence ranks #27. TEN's passing offence ranks #26 of 32 and CIN's pass defence ranks #17. The names to watch are C.Brown (CIN) as a top rusher, J.Burrow (CIN) as a top passer, T.Pollard (TEN) as a top rusher.",
+      "source": "template"
+    },
+    {
+      "id": "2026_08_ARI_DAL",
+      "title": "ARI at DAL",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "DAL",
+        "prob": 0.6278409666786477
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "DAL": 0.6278409666786477,
+            "ARI": 0.37215903332135225
+          }
+        },
+        {
+          "market": "spread",
+          "model_margin": 4.268828868865967,
+          "line": "DAL -6.5",
+          "model_cover_prob": 0.4323232120152758
+        },
+        {
+          "market": "total",
+          "model_total": 48.18604278564453,
+          "line": 54.5,
+          "model_over_prob": 0.3202537617490946
+        }
+      ],
+      "verdict": "DAL is the pick.",
+      "read": "DAL's passing offence ranks #4 of 32 and ARI's pass defence ranks #30. DAL's rushing offence ranks #13 of 32 and ARI's rush defence ranks #2. The names to watch are J.Williams (DAL) as a top rusher, D.Prescott (DAL) as a top passer, J.Love (ARI) as a top rusher.",
+      "source": "template"
+    },
+    {
+      "id": "2026_08_MIN_DET",
+      "title": "MIN at DET",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "DET",
+        "prob": 0.6024723153509592
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "DET": 0.6024723153509592,
+            "MIN": 0.39752768464904076
+          }
+        },
+        {
+          "market": "spread",
+          "model_margin": 3.399869918823242,
+          "line": "DET -3.0",
+          "model_cover_prob": 0.5121858890076613
+        },
+        {
+          "market": "total",
+          "model_total": 42.9320182800293,
+          "line": 46.5,
+          "model_over_prob": 0.39593117116121956
+        }
+      ],
+      "verdict": "DET is the pick.",
+      "read": "DET's rushing offence ranks #20 of 32 and MIN's rush defence ranks #5. The names to watch are J.Gibbs (DET) as a top rusher, J.Goff (DET) as a top passer, A.Jones (MIN) as a top rusher.",
+      "source": "template"
+    }
+  ],
+  "cfb": [
+    {
+      "id": "401871071",
+      "title": "Delaware at Western Kentucky",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "Western Kentucky",
+        "prob": 0.6505221357502391
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "Western Kentucky": 0.6505221357502391,
+            "Delaware": 0.3494778642497609
+          }
+        }
+      ],
+      "verdict": "Western Kentucky is the pick.",
+      "read": "",
+      "source": "template"
+    },
+    {
+      "id": "401871072",
+      "title": "Sam Houston at Missouri State",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "Missouri State",
+        "prob": 0.6182783797940883
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "Missouri State": 0.6182783797940883,
+            "Sam Houston": 0.3817216202059117
+          }
+        }
+      ],
+      "verdict": "Missouri State is the pick.",
+      "read": "",
+      "source": "template"
+    },
+    {
+      "id": "401871058",
+      "title": "Kennesaw State at Middle Tennessee",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "Middle Tennessee",
+        "prob": 0.5044900200233042
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "Middle Tennessee": 0.5044900200233042,
+            "Kennesaw State": 0.49550997997669577
+          }
+        }
+      ],
+      "verdict": "Middle Tennessee is the pick.",
+      "read": "",
+      "source": "template"
+    },
+    {
+      "id": "401871057",
+      "title": "Jacksonville State at New Mexico State",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "Jacksonville State",
+        "prob": 0.6802998371891331
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "New Mexico State": 0.3197001628108669,
+            "Jacksonville State": 0.6802998371891331
+          }
+        }
+      ],
+      "verdict": "Jacksonville State is the pick.",
+      "read": "",
+      "source": "template"
+    },
+    {
+      "id": "401869963",
+      "title": "Troy at James Madison",
+      "status": "upcoming",
+      "pick_timing": "pre_kickoff",
+      "pick": {
+        "label": "James Madison",
+        "prob": 0.8792567470625245
+      },
+      "markets": [
+        {
+          "market": "moneyline",
+          "model": {
+            "James Madison": 0.8792567470625245,
+            "Troy": 0.12074325293747545
+          }
+        }
+      ],
+      "verdict": "James Madison is the pick.",
+      "read": "",
+      "source": "template"
+    }
+  ]
+}
