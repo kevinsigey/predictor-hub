@@ -27,6 +27,7 @@ import json
 import sys
 from pathlib import Path
 
+from . import closing as closing_mod
 from . import segments as segments_mod
 from . import sources, stats
 from .segments import MIN_SETTLED_GAMES_FLOOR
@@ -114,7 +115,9 @@ def summarise(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
     # It is deliberately NOT one of the gate's conditions. CLV says whether the
     # entry was early; it does not say whether the bet won, and a segment is
     # never called "has an edge" on the strength of it.
-    clvs = [v for v in (stats.clv_points(r, closing) for r in rows) if v is not None]
+    clv_pairs = [(cluster_key(r), v) for r in rows
+                 if (v := stats.clv_points(r, closing)) is not None]
+    clvs = [v for _, v in clv_pairs]
 
     fingerprint = rows[0].get("model_fingerprint") if rows else None
 
@@ -182,6 +185,8 @@ def summarise(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
         # re-deriving them. Dropped before the report is written: it is an
         # intermediate, not a figure a reader should see.
         "_clv_values": clvs,
+        "_clv_pairs": clv_pairs,
+        **stats.clv_summary(clv_pairs),
         "calibration_gap_points": (round(trend["gap_late"], 4) if trend["measurable"]
                                    else stats.calibration_gap(
                                        [r["model_p"] for r in settled], outcomes)),
@@ -311,10 +316,12 @@ def _per_sport(rows: list[dict], table: dict[str, dict], gate_cfg: dict,
         all_games = {game_id_of(r) for r in sport_rows} - {""}
         n_settled_no_game_id = sum(1 for r in settled if not game_id_of(r))
         clvs = []
+        clv_pairs = []
         for key, s in table.items():
             if not key.startswith(f"{sport}:"):
                 continue
             clvs.extend([v for v in (s.get("_clv_values") or []) if v is not None])
+            clv_pairs.extend(s.get("_clv_pairs") or [])
         qualifies = [s for s in table.values() if s.get("sport") == sport]
         # A sport qualifies only if EVERY one of its segment groups qualifies.
         # "Any" would let one good segment carry a sport past the gate that its
@@ -354,6 +361,7 @@ def _per_sport(rows: list[dict], table: dict[str, dict], gate_cfg: dict,
             "pnl_ci95": [round(ci[0], 4), round(ci[1], 4)] if ci else None,
             "mean_clv_cents": round(stats.fmean(clvs), 4) if clvs else None,
             "n_clv": len(clvs),
+            **stats.clv_summary(clv_pairs),
             "share_clv_positive": (round(sum(1 for v in clvs if v > 0) / len(clvs), 4)
                                     if clvs else None),
             "excluded_legacy_total_rows": legacy_by_sport.get(sport, 0),
@@ -370,6 +378,17 @@ def _per_sport(rows: list[dict], table: dict[str, dict], gate_cfg: dict,
             ) if not sport_qualifies else None),
         }
     return out
+
+
+def _total_clv(table: dict) -> dict:
+    pairs = [p for s in table.values() for p in (s.get("_clv_pairs") or [])]
+    vals = [v for _, v in pairs]
+    return {
+        "n_clv": len(vals),
+        "mean_clv_cents": round(stats.fmean(vals), 4) if vals else None,
+        "share_clv_positive": round(sum(1 for v in vals if v > 0) / len(vals), 4) if vals else None,
+        **stats.clv_summary(pairs),
+    }
 
 
 def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict) -> dict:
@@ -441,6 +460,7 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict) -> dict
             "segment_groups": len(table),
             "segments_qualifying": sum(1 for v in table.values() if v["qualifies_for_edge_claim"]),
             "excluded_legacy_total_rows": n_legacy,
+            **_total_clv(table),
         },
         "per_segment": per_segment,
         "per_sport": per_sport,
@@ -511,6 +531,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="directory holding the sibling site checkouts")
     parser.add_argument("--lines", nargs="*", default=None,
                         help="Kalshi line .jsonl.gz files to read closing prices from")
+    parser.add_argument("--closing", default=closing_mod.DEFAULT_PATH,
+                        help="near-kickoff observations from scripts/paper_close.py")
     parser.add_argument("--out", default=str(REPORT_PATH))
     args = parser.parse_args(argv)
 
@@ -525,7 +547,10 @@ def main(argv: list[str] | None = None) -> int:
         if root:
             for sport in sorted(set(SITE_FOR_SPORT.values())):
                 files.extend(sources.lines_files(root, sport))
-    closing = stats.closing_prices(stats.annotate_observed(sources.read_line_files(files)))
+    obs = closing_mod.read_observations(Path(args.closing))
+    closing = stats.closing_prices(
+        stats.annotate_observed(sources.read_line_files(files))
+        + closing_mod.observation_rows(obs, rows))
 
     report = build(rows, closing=closing, gate_cfg=segments_mod.gate(config))
     out = Path(args.out)
