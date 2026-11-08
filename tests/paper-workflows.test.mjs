@@ -93,3 +93,13 @@ test("the log workflow's clone step cannot fail quietly", () => {
   // that failed in the middle would otherwise be invisible.
   assert.match(logYml, /set -e|&&|exit 1/);
 });
+
+test("paper-close.yml is paper-only, every 15 minutes, and commits only closing.jsonl", () => {
+  const yml = readFileSync(new URL("../.github/workflows/paper-close.yml", import.meta.url), "utf8");
+  assert.match(yml, /\*\/15 \* \* \* \*/);
+  assert.match(yml, /group: data-commits/);
+  assert.match(yml, /if:\s*success\(\)/);
+  assert.match(yml, /git add data\/paper\/closing\.jsonl/);
+  assert.ok(yml.indexOf("python3 scripts/paper_close.py") < yml.indexOf("Commit and push if changed"));
+  assert.doesNotMatch(yml, /secrets\./);
+});
