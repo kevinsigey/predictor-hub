@@ -104,8 +104,11 @@ test("the page states that CLV is a leading indicator and not a gate", () => {
 test("the gate is what the page says it is", () => {
   const min = report.gate.min_settled;
   assert.equal(min, 300);
-  assert.match(html, new RegExp(`about ${min} settled paper bets`));
+  // The gate floors come from the report at render time, and only ever in a
+  // dropdown: they are no longer the page's headline.
+  assert.match(html, /about " \+ minBets \+ " settled paper bets/);
   assert.match(html, /cannot be judged yet/i);
+  assert.doesNotMatch(html, /Progress by sport|Log it|You are here/);
 });
 
 test("the page carries the excluded-legacy note", () => {
@@ -113,4 +116,88 @@ test("the page carries the excluded-legacy note", () => {
   if (excluded > 0) {
     assert.match(html, /earlier total-points rows excluded/i);
   }
+});
+
+// ---- Three-question layout ----
+import vm from "node:vm";
+
+const libSrc = html.match(/<script id="paper-lib">([\s\S]*?)<\/script>/)[1];
+const sandbox = {};
+vm.runInNewContext(libSrc, sandbox);
+const Lib = sandbox.PaperLib;
+
+test("the page has the three question sections, in order", () => {
+  const ids = [...html.matchAll(/<section class="q" id="(q\d)"/g)].map((m) => m[1]);
+  assert.deepEqual(ids, ["q1", "q2", "q3"]);
+  assert.match(html, /Is the model better than the market\?/);
+  assert.match(html, /Are we finding prices before the market\?/);
+  assert.match(html, /Does it make money after fees\?/);
+});
+
+test("the page loads no external scripts but the existing analytics counter", () => {
+  const srcs = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(srcs, ["//gc.zgo.at/count.js"]);
+});
+
+test("explanations live in dropdowns, not blocks of text", () => {
+  const details = (html.match(/<details class="panel"/g) || []).length;
+  assert.equal(details, 6);
+  for (const title of ["How a pick is judged", "All numbers by sport", "Segments (sport x market x confidence band)",
+                       "All-time vs current model", "Glossary"]) {
+    assert.ok(html.includes(`<summary>${title}`), `missing dropdown ${title}`);
+  }
+  const outside = html.replace(/<details[\s\S]*?<\/details>/g, "").replace(/<script[\s\S]*?<\/script>/g, "");
+  for (const m of outside.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)) {
+    assert.ok(m[1].length <= 220, `long paragraph outside <details>: ${m[1].slice(0, 60)}`);
+  }
+});
+
+test("the forest plot handles null CI, null n_clv and an empty report", () => {
+  const dom = [-1, 1];
+  assert.match(Lib.forest({ kind: "q1", est: 0.2, ci: null, n: 5, domain: dom }), /no interval/);
+  assert.match(Lib.forest({ kind: "q2", est: null, ci: null, n: 0, domain: dom }), /no data yet/);
+  assert.match(Lib.forest({ kind: "q1", est: 0.2, ci: [0.1, 0.3], n: 50, domain: dom }), /f-win/);
+  assert.match(Lib.forest({ kind: "q1", est: -0.2, ci: [-0.3, -0.1], n: 50, domain: dom }), /f-loss/);
+  assert.match(Lib.forest({ kind: "q1", est: 0, ci: [-0.1, 0.1], n: 50, domain: dom }), /f-lean/);
+  const grey = Lib.forest({ kind: "q1", est: -0.09, ci: [-0.12, -0.06], n: 3, domain: dom, grey: true });
+  assert.doesNotMatch(grey, /class="bar/);
+  assert.match(grey, /n = 3/);
+  assert.match(grey, /role="img" aria-label=/);
+  for (const r of [undefined, null, {}, { scoring: {}, verdicts: {} }]) {
+    const m = Lib.model(r);
+    assert.equal(m.ready, r && r.scoring ? true : false);
+    assert.equal(m.sports.length, 0);
+    assert.ok(Lib.heroLine(m));
+  }
+});
+
+test("a sport with no closing lines yet is pending, never a zero", () => {
+  const m = Lib.model({ per_sport: { nba: { n_clv: 0, mean_clv_cents: null } } });
+  assert.equal(m.sports[0].q2.pending, true);
+  assert.match(html, /Capturing: first closes arrive on the next game day/);
+});
+
+test("status chips cover all four statuses", () => {
+  for (const [k, text] of [["proven", "Proven"], ["leaning", "Leaning"], ["against", "Against"], ["not_yet", "Not yet"]]) {
+    assert.match(Lib.chip(k), new RegExp(`class="chip ${k}">${text}<`));
+  }
+  assert.match(Lib.chip("bogus"), /Not yet/);
+});
+
+test("path-to-verdict wording is truthful", () => {
+  assert.equal(Lib.needText(null, -0.03), "No path at the current result");
+  assert.equal(Lib.needText(null, null), "No path at the current result");
+  assert.equal(Lib.needText(1200, 0.02), "about 1,200 more bets at the current effect");
+});
+
+test("the real report renders: biggest sample first, no edge claimed", () => {
+  const m = Lib.model(report);
+  assert.equal(m.ready, true);
+  const ns = Array.from(m.sports, (s) => s.n);
+  assert.deepEqual(ns, [...ns].sort((a, b) => b - a));
+  const f1 = m.sports.find((s) => s.key === "f1");
+  assert.equal(f1.q1.grey, true);
+  const line = Lib.heroLine(m);
+  if (!m.sports.some((s) => s.q3.status === "proven")) assert.doesNotMatch(line, /proven|beat/i);
+  assert.doesNotMatch(html, /Beats the market/);
 });
