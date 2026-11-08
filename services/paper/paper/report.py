@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -31,7 +32,8 @@ from . import closing as closing_mod
 from . import segments as segments_mod
 from . import sources, stats
 from .segments import MIN_SETTLED_GAMES_FLOOR
-from .ledger import KIND_CANDIDATE, KIND_SHADOW, STATUS_SETTLED, Ledger, resolved
+from .ledger import (KIND_CANDIDATE, KIND_SHADOW, STATUS_SETTLED, Ledger, resolved,
+                     resolved_scores)
 
 REPORT_PATH = Path("data/paper/report.json")
 
@@ -391,7 +393,164 @@ def _total_clv(table: dict) -> dict:
     }
 
 
-def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict) -> dict:
+
+# ---------------------------------------------------------------------------
+# Q1 scoring and the sport-level verdict (additive; the segment gate is above).
+# ---------------------------------------------------------------------------
+SCORING_DOCS = {
+    "population": "Settled, non-void rows with model_p and market_price. Score rows (one per game+market, "
+                  "no stake, earliest pre-kickoff observation) first; candidate and shadow rows are a "
+                  "backfill only for (game_id, market) pairs that have no score row, deduped by "
+                  "(game_id, market, ticker), earliest logged_at wins. Backfill rows were selected "
+                  "for a >= 4 point model-over-market edge, so they flatter the model: read "
+                  "n_from_backfill as an upper bound on model quality until score rows dominate.",
+    "clipping": "model_p and market_price are clipped to [0.01, 0.99] before log-loss and Brier.",
+    "market_price": "The buyable ask (not the mid).",
+    "n_games": "Distinct game_id (race for F1). n_from_score_rows / n_from_backfill count ROWS.",
+    "paired_logloss_diff": "Mean over games of (market log-loss - model log-loss), each game averaging its "
+                           "rows; positive = model better. 95% percentile bootstrap over games, "
+                           "2000 resamples, fixed seed.",
+    "p_model_better": "Share of bootstrap draws with the paired difference > 0.",
+    "games_to_resolve": "More games needed for the CI half-width to fall below 0.005 log-loss at the "
+                        "observed SD (iid approximation); null under 10 games.",
+}
+
+
+def _fp_sport(rows: list[dict]) -> dict[str, str | None]:
+    """Each sport's current model fingerprint: the one logged most recently."""
+    latest: dict[str, tuple[str, str | None]] = {}
+    for r in rows:
+        sport = r.get("sport")
+        if sport and (sport not in latest or (r.get("logged_at") or "") >= latest[sport][0]):
+            latest[sport] = (r.get("logged_at") or "", r.get("model_fingerprint"))
+    return {k: v[1] for k, v in latest.items()}
+
+
+def score_points(scores: list[dict], others: list[dict]) -> list[dict]:
+    """The Q1 population: settled score rows, plus candidate/shadow backfill (see SCORING_DOCS)."""
+    def ok(r):
+        return (r.get("outcome") in ("yes", "no") and game_id_of(r)
+                and isinstance(r.get("model_p"), (int, float))
+                and isinstance(r.get("market_price"), (int, float)))
+
+    def point(r, source):
+        return {"sport": r.get("sport"), "game_id": game_id_of(r), "market": r.get("market"),
+                "ticker": r.get("ticker"), "model_p": float(r["model_p"]),
+                "market_price": float(r["market_price"]), "y": 1 if r["outcome"] == "yes" else 0,
+                "source": source, "model_fingerprint": r.get("model_fingerprint"),
+                "logged_at": r.get("logged_at") or ""}
+
+    covered = {(r.get("sport"), game_id_of(r), r.get("market")) for r in scores}
+    out = [point(r, "score") for r in scores if ok(r)]
+    seen: dict[tuple, dict] = {}
+    for r in sorted(others, key=lambda r: r.get("logged_at") or ""):
+        if _is_legacy_total(r) or not ok(r):
+            continue
+        if (r.get("sport"), game_id_of(r), r.get("market")) in covered:
+            continue
+        seen.setdefault((r.get("sport"), game_id_of(r), r.get("market"), r.get("ticker")), r)
+    return out + [point(r, "backfill") for r in seen.values()]
+
+
+def build_scoring(points: list[dict]) -> dict:
+    sports = sorted({p["sport"] for p in points if p["sport"]})
+    keyed = [dict(p, game_id=f"{p['sport']}|{p['game_id']}") for p in points]
+    return {"docs": SCORING_DOCS,
+            "per_sport": {s: stats.score_summary([p for p in keyed if p["sport"] == s]) for s in sports},
+            "total": stats.score_summary(keyed)}
+
+
+def _verdict(pnl_rows: list[dict], points: list[dict], *, min_bets: int, min_events: int) -> dict:
+    """One sport-level verdict from settled staked rows (Q3) and the Q1 population."""
+    groups: dict = {}
+    for r in pnl_rows:
+        groups.setdefault(f"{r['sport']}|{game_id_of(r)}", []).append(float(r.get("pnl_per_contract") or 0.0))
+    n = len(pnl_rows)
+    c = stats.cluster_ci(groups, by_row=True)
+    mean = c["mean"] if c else None
+    sd = None
+    needed = None
+    if n >= 2:
+        vals = [v for g in groups.values() for v in g]
+        sd = (sum((v - mean) ** 2 for v in vals) / (n - 1)) ** 0.5
+        if mean > 0:
+            needed = max(0, math.ceil((1.96 * sd / mean) ** 2 - 1e-9) - n)
+    trend = stats.calibration_trend(sorted(pnl_rows, key=lambda r: r.get("logged_at") or ""),
+                                    min_n=min_bets)
+    q1 = stats.score_summary(points)
+    ll_ci = q1["paired_logloss_diff_ci95"]
+    pnl_floors = n >= min_bets and len(groups) >= min_events
+    q1_floors = q1["n_games"] >= min_events
+    pnl_lo, pnl_hi = (c["ci"] if c else (None, None))
+    reasons = []
+    if not pnl_floors:
+        reasons.append(f"{n} settled bets over {len(groups)} games; need {min_bets} bets and {min_events} games")
+    if not q1_floors:
+        reasons.append(f"{q1['n_games']} scored games; need {min_events} for the Q1 claim")
+
+    if (pnl_floors and pnl_hi < 0) or (q1_floors and ll_ci[1] < 0):
+        status = "against"
+        if pnl_floors and pnl_hi < 0:
+            reasons.append("P&L interval is entirely below zero")
+        if q1_floors and ll_ci[1] < 0:
+            reasons.append("paired log-loss interval is entirely on the market-better side")
+    elif not pnl_floors:
+        status = "not_yet"
+    elif (pnl_lo > 0 and q1_floors and ll_ci[0] > 0 and trend["measurable"] and not trend["widening"]):
+        status = "proven"
+    elif mean > 0 and (not q1_floors or q1["paired_logloss_diff"] > 0):
+        status = "leaning"
+    else:
+        status = "not_yet"
+        reasons.append("floors met but the point estimate is not favourable and no interval is entirely against")
+    if status in ("leaning", "not_yet") and pnl_floors and c and pnl_lo <= 0:
+        reasons.append("P&L interval includes zero")
+    if status != "proven" and q1_floors and ll_ci[0] <= 0 <= ll_ci[1]:
+        reasons.append("paired log-loss interval includes zero")
+    if pnl_floors and trend["measurable"] and trend["widening"]:
+        reasons.append("calibration gap widening")
+    r4 = lambda x: None if x is None else round(x, 4)
+    return {
+        "status": status, "reasons": reasons,
+        "n_settled_bets": n, "n_events": len(groups),
+        "min_settled_bets": min_bets, "min_events": min_events,
+        "pnl_per_contract": r4(mean), "pnl_per_contract_ci95": None if not c else [r4(pnl_lo), r4(pnl_hi)],
+        "pnl_sd_per_contract": r4(sd),
+        "needed_bets_at_observed_effect": needed,
+        "calibration_trend": trend,
+        "q1_paired_logloss_diff": q1["paired_logloss_diff"],
+        "q1_paired_logloss_diff_ci95": ll_ci,
+        "q1_n_games": q1["n_games"],
+        "q1_p_model_better": q1["p_model_better"],
+    }
+
+
+def build_verdicts(rows: list[dict], points: list[dict], scores: list[dict], sport_cfg: dict) -> dict:
+    """Per-sport and pooled verdicts, all-time and current-model-only. Pre-stated config; never tuned."""
+    bets = [r for r in rows if r.get("kind") != KIND_SHADOW and r.get("status") == STATUS_SETTLED
+            and game_id_of(r) and not _is_legacy_total(r)]
+    current = _fp_sport(rows + scores)
+    cur = lambda r: r.get("model_fingerprint") == current.get(r.get("sport"))
+    events = sport_cfg["min_events"]
+    default = events["default"]
+    sports = sorted({r["sport"] for r in bets + points if r.get("sport")})
+
+    def both(sport, min_events):
+        sel = (lambda r: r.get("sport") == sport) if sport else (lambda r: True)
+        out = {}
+        for name, extra in (("all_time", lambda r: True), ("current_model_only", cur)):
+            out[name] = _verdict([r for r in bets if sel(r) and extra(r)],
+                                 [p for p in points if sel(p) and extra(p)],
+                                 min_bets=sport_cfg["min_settled_bets"], min_events=min_events)
+        return out
+
+    return {"config": sport_cfg,
+            "per_sport": {s: both(s, events.get(s, default)) for s in sports},
+            "pooled": both(None, default)}
+
+
+def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
+          score_rows: list[dict] | None = None, sport_gate_cfg: dict | None = None) -> dict:
     n_legacy = sum(1 for r in rows if _is_legacy_total(r))
     # How many of the set-aside rows each sport had, so a sport can say so.
     legacy_by_sport: dict[str, int] = {}
@@ -448,7 +607,13 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict) -> dict
 
     per_sport = _per_sport(rows, table, gate_cfg, legacy_by_sport)
 
+    scores = list(score_rows or [])
+    points = score_points(scores, rows)
+    sport_cfg = sport_gate_cfg or segments_mod.sport_gate({})
+
     return {
+        "scoring": build_scoring(points),
+        "verdicts": build_verdicts(rows, points, scores, sport_cfg),
         "schema_version": 1,
         "gate": gate_cfg,
         "totals": {
@@ -552,7 +717,8 @@ def main(argv: list[str] | None = None) -> int:
         stats.annotate_observed(sources.read_line_files(files))
         + closing_mod.observation_rows(obs, rows))
 
-    report = build(rows, closing=closing, gate_cfg=segments_mod.gate(config))
+    report = build(rows, closing=closing, gate_cfg=segments_mod.gate(config),
+                   score_rows=resolved_scores(ledger), sport_gate_cfg=segments_mod.sport_gate(config))
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(_public(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")

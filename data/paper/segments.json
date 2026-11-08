@@ -87,6 +87,11 @@
     "require_calibration_not_widening": true,
     "min_for_calibration_trend": 100
   },
+  "sport_gate": {
+    "_comment": "PRE-STATED sport-level verdict config (Q1 + Q3). Not tuned on the ledger; changing it is a methodology change. Segment-level `gate` above is unchanged and independent. Events are distinct games (races for F1).",
+    "min_settled_bets": 100,
+    "min_events": {"default": 50, "f1": 20, "pl": 60}
+  },
   "segments": [
     {
       "segment": "nfl:moneyline",

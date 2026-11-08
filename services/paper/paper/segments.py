@@ -139,3 +139,17 @@ def gate(config: dict) -> dict:
         # handful of bets, so the report says "not yet measurable" instead.
         "min_for_calibration_trend": int(raw.get("min_for_calibration_trend", 100)),
     }
+
+
+#: Pre-stated, NOT tuned on the ledger. Used when segments.json has no `sport_gate`.
+SPORT_GATE_DEFAULTS = {"min_settled_bets": 100,
+                       "min_events": {"default": 50, "f1": 20, "pl": 60}}
+
+
+def sport_gate(config: dict) -> dict:
+    """The sport-level verdict config (segments.json `sport_gate`); the segment gate is separate."""
+    raw = config.get("sport_gate") or {}
+    events = dict(SPORT_GATE_DEFAULTS["min_events"])
+    events.update(raw.get("min_events") or {})
+    return {"min_settled_bets": int(raw.get("min_settled_bets", SPORT_GATE_DEFAULTS["min_settled_bets"])),
+            "min_events": {k: int(v) for k, v in events.items()}}

@@ -36,7 +36,8 @@ from datetime import datetime, timezone
 
 from . import sources
 from .fees import kalshi_fee_cents
-from .ledger import (KIND_CANDIDATE, KIND_SHADOW, STATUS_OPEN, candidate_id, stake_for)
+from .ledger import (KIND_CANDIDATE, KIND_SHADOW, RECORD_SCORE, STATUS_OPEN, candidate_id,
+                     score_id, stake_for)
 from . import segments as segments_mod
 from .segments import bucket_label, edge_threshold, match, segment_key
 
@@ -248,10 +249,15 @@ def _iso(stamp: datetime | None) -> str | None:
 
 def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: dict, *,
                    committed_by_game: dict[str, float] | None = None,
-                   positions: dict[str, str] | None = None) -> tuple[list[dict], dict[str, int]]:
+                   positions: dict[str, str] | None = None,
+                   scores: list[dict] | None = None) -> tuple[list[dict], dict[str, int]]:
     """Build the candidate and shadow rows for one batch of Kalshi snapshots.
 
     Returns the rows to append and a tally of why each rejected row was rejected.
+    If `scores` is a list, every pre-kickoff row that has a model probability
+    (ordered before the price) and a buyable price is appended to it as a raw
+    observation, BEFORE any liquidity or edge filter; `score_records` turns
+    those into the no-stake score rows.
     """
     best: dict[str, dict] = {}
     skipped: dict[str, int] = {}
@@ -378,6 +384,15 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
             skip("no_matching_game")
             continue
 
+        if scores is not None and proven:
+            allowed = match(config, sport=sport, market=market, position=(positions or {}).get(pick))
+            scores.append({"sport": sport, "market": market, "game_id": game["game_id"],
+                           "ticker": row.get("ticker"), "selection": pick, "line": row.get("line"),
+                           "model_p": model_p, "price": price, "seen_at": seen_at,
+                           "yes_bid": row.get("yes_bid"), "kickoff": start, "home": game.get("home"),
+                           "fingerprint": game.get("model_fingerprint"),
+                           "allow_listed": allowed is not None})
+
         # -- liquidity: a quote you cannot actually trade is not a price ------
         # The ask alone is not enough. A market with no bid, a wide spread, no
         # volume, or a 1-cent ask is not a market anybody can enter, and logging
@@ -478,6 +493,50 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
     return list(best.values()), skipped
 
 
+def score_records(observations: list[dict]) -> list[dict]:
+    """One no-stake "score" row per (game, market): the earliest observation, one main rung.
+
+    Main rung: moneyline = the home side; every other game market (spread, total,
+    btts) = the rung whose buyable price is closest to 0.50. Among the rungs seen
+    at the earliest qualifying snapshot. F1 driver markets: one row per
+    (race, ticker), earliest observation each, only for allow-listed markets.
+    Stake is 0 and the row is its own record type, so it is never a bet.
+    """
+    groups: dict[tuple, list[dict]] = {}
+    for o in observations:
+        if o["sport"] == "f1":
+            if not o["allow_listed"]:
+                continue
+            key = (o["sport"], o["game_id"], o["market"], o["ticker"])
+        else:
+            if o["market"] == "moneyline" and o["selection"] != o["home"]:
+                continue
+            key = (o["sport"], o["game_id"], o["market"], None)
+        groups.setdefault(key, []).append(o)
+
+    out = []
+    for (sport, game_id, market, ticker), obs in groups.items():
+        first = min(o["seen_at"] for o in obs)
+        pick = min((o for o in obs if o["seen_at"] == first), key=lambda o: abs(o["price"] - 0.5))
+        bid, ask = pick["yes_bid"], pick["price"]
+        mid = (float(bid) + ask) / 2.0 if isinstance(bid, (int, float)) and 0 < float(bid) <= ask else None
+        out.append({
+            "record": RECORD_SCORE,
+            "id": score_id(sport=sport, game_id=game_id, market=market, ticker=ticker),
+            "sport": sport, "market": market, "game_id": game_id,
+            "ticker": pick["ticker"], "side": "yes", "line": pick["line"],
+            "model_p": round(pick["model_p"], 6),
+            "market_price": ask,
+            "market_mid": None if mid is None else round(mid, 6),
+            "kickoff": _iso(pick["kickoff"]),
+            "logged_at": _iso(pick["seen_at"]),
+            "price_observed_at": _iso(pick["seen_at"]),
+            "model_fingerprint": pick["fingerprint"],
+            "stake": 0.0,
+        })
+    return out
+
+
 def _num(value) -> float | None:
     return float(value) if isinstance(value, (int, float)) else None
 
@@ -564,15 +623,22 @@ def main(argv: list[str] | None = None) -> int:
         games[sport] = sources.snapshot_games(snapshot, sport)
         positions.update(sources.snapshot_positions(snapshot))
 
+    observed: list[dict] = []
     made, skipped = candidate_rows(rows, games, config,
                                    committed_by_game=ledger.committed_by_game(),
-                                   positions=positions)
+                                   positions=positions, scores=observed)
+    scored = score_records(observed)
+    known = {r["id"] for r in ledger.scores()}
+    fresh_scores = [r for r in scored if r["id"] not in known]
     fresh = made if args.dry_run else ledger.append_new(made)
+    if not args.dry_run:
+        ledger.append_new(fresh_scores)
 
     counts = {"candidates": sum(1 for r in fresh if r["kind"] == "candidate"),
               "shadows": sum(1 for r in fresh if r["kind"] == "shadow")}
     print(json.dumps({
         "read_rows": len(rows), "written": len(fresh), **counts,
+        "scores": len(fresh_scores),
         "skipped": dict(sorted(skipped.items())),
         "dry_run": bool(args.dry_run),
     }, indent=2))
