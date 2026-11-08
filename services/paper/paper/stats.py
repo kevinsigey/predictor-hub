@@ -20,6 +20,7 @@ part of an edge that is supposed to persist.
 """
 from __future__ import annotations
 
+import math
 import random
 from datetime import datetime
 from statistics import fmean
@@ -103,6 +104,48 @@ def bootstrap_mean_ci_clustered(pairs, *, iters: int = BOOTSTRAP_ITERS, seed: in
     lo = means[int((1 - level) / 2 * (iters - 1))]
     hi = means[min(iters - 1, int(((1 + level) / 2) * (iters - 1)))]
     return lo, hi
+
+
+CLV_ITERS = 2000
+CLV_SE_TARGET_CENTS = 1.0
+
+
+def clv_summary(pairs) -> dict:
+    """CLV uncertainty from (game key, clv cents) pairs.
+
+    The interval resamples GAMES (the rungs of one game move together) and takes
+    the per-bet mean of the resampled games' bets, 2000 draws, fixed seed.
+    `clv_bets_to_resolve` is how many MORE bets the 95% half-width needs to fall
+    below 1 cent at the observed per-bet SD (iid approximation); None under 10.
+    """
+    groups: dict[object, list[float]] = {}
+    for key, v in pairs:
+        groups.setdefault(key, []).append(float(v))
+    n = sum(len(g) for g in groups.values())
+    out = {"clv_ci95": None, "clv_bets_to_resolve": None}
+    if not n:
+        return out
+    sums = [(sum(g), len(g)) for g in groups.values()]
+    if len(sums) == 1:
+        m = sums[0][0] / sums[0][1]
+        out["clv_ci95"] = [round(m, 4), round(m, 4)]
+    else:
+        rng = random.Random(BOOTSTRAP_SEED)
+        k = len(sums)
+        means = []
+        for _ in range(CLV_ITERS):
+            picks = [sums[rng.randrange(k)] for _ in range(k)]
+            means.append(sum(a for a, _ in picks) / sum(b for _, b in picks))
+        means.sort()
+        out["clv_ci95"] = [round(means[int(0.025 * (CLV_ITERS - 1))], 4),
+                           round(means[int(0.975 * (CLV_ITERS - 1))], 4)]
+    if n >= 10:
+        vals = [v for g in groups.values() for v in g]
+        m = fmean(vals)
+        sd = (sum((v - m) ** 2 for v in vals) / (n - 1)) ** 0.5
+        need = math.ceil((1.96 * sd / CLV_SE_TARGET_CENTS) ** 2 - 1e-9)
+        out["clv_bets_to_resolve"] = max(0, need - n)
+    return out
 
 
 def excludes_zero(interval: tuple[float, float] | None) -> bool | None:
