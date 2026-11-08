@@ -310,3 +310,96 @@ def annotate_observed(rows: list[dict]) -> list[dict]:
         copy["_no_price"] = sources.buyable_price(row, "no")
         out.append(copy)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Q1 scoring: is the model better than the market over every priced game?
+# ---------------------------------------------------------------------------
+SCORE_ITERS = 2000
+SCORE_CLIP = (0.01, 0.99)
+SCORE_HALF_WIDTH_TARGET = 0.005
+
+
+def _clip(p: float) -> float:
+    """Calibrated clipping: probabilities are clipped to [0.01, 0.99] before scoring."""
+    return min(SCORE_CLIP[1], max(SCORE_CLIP[0], float(p)))
+
+
+def log_loss(p: float, y: int) -> float:
+    p = _clip(p)
+    return -math.log(p if y else 1.0 - p)
+
+
+def brier(p: float, y: int) -> float:
+    return (_clip(p) - y) ** 2
+
+
+def cluster_ci(groups: dict, *, by_row: bool, iters: int = SCORE_ITERS,
+               seed: int = BOOTSTRAP_SEED) -> dict | None:
+    """Percentile bootstrap of a mean, resampling whole GAMES (clusters).
+
+    `groups` maps game key -> list of row values. `by_row=False`: each game
+    counts once (its values are averaged), so rows of one game never double
+    count. `by_row=True`: the statistic is the per-row mean (sum / count over
+    the resampled games), which is what "per contract" means for P&L.
+    Returns the point estimate, the 95% interval and every draw's sign share.
+    """
+    if not groups:
+        return None
+    cells = [(sum(v), len(v)) for v in groups.values()]
+    k = len(cells)
+    est = (sum(a for a, _ in cells) / sum(b for _, b in cells)) if by_row \
+        else fmean(a / b for a, b in cells)
+    if k == 1:
+        return {"mean": est, "ci": (est, est), "p_positive": 1.0 if est > 0 else 0.0}
+    rng = random.Random(seed)
+    draws = []
+    for _ in range(iters):
+        pick = [cells[rng.randrange(k)] for _ in range(k)]
+        draws.append(sum(a for a, _ in pick) / sum(b for _, b in pick) if by_row
+                     else sum(a / b for a, b in pick) / k)
+    draws.sort()
+    return {"mean": est,
+            "ci": (draws[int(0.025 * (iters - 1))], draws[int(0.975 * (iters - 1))]),
+            "p_positive": sum(1 for d in draws if d > 0) / iters}
+
+
+def score_summary(points: list[dict]) -> dict:
+    """The Q1 block for one population. Each point: game_id, model_p, market_price, y, source.
+
+    Per-game paired difference = market log-loss minus model log-loss, averaged
+    over the game's rows (positive = model better); the interval resamples games.
+    """
+    if not points:
+        return {"n_games": 0, "n_rows": 0, "n_from_score_rows": 0, "n_from_backfill": 0,
+                "log_loss_model": None, "log_loss_market": None, "brier_model": None,
+                "brier_market": None, "paired_logloss_diff": None, "paired_logloss_diff_ci95": None,
+                "p_model_better": None, "games_to_resolve": None}
+    groups: dict = {}
+    for p in points:
+        groups.setdefault(p["game_id"], []).append(
+            log_loss(p["market_price"], p["y"]) - log_loss(p["model_p"], p["y"]))
+    c = cluster_ci(groups, by_row=False)
+    games = len(groups)
+    per_game = [fmean(v) for v in groups.values()]
+    games_to_resolve = None
+    if games >= 10:
+        m = fmean(per_game)
+        sd = (sum((x - m) ** 2 for x in per_game) / (games - 1)) ** 0.5
+        need = math.ceil((1.96 * sd / SCORE_HALF_WIDTH_TARGET) ** 2 - 1e-9)
+        games_to_resolve = max(0, need - games)
+    r = lambda x: round(x, 6)
+    return {
+        "n_games": games,
+        "n_rows": len(points),
+        "n_from_score_rows": sum(1 for p in points if p["source"] == "score"),
+        "n_from_backfill": sum(1 for p in points if p["source"] == "backfill"),
+        "log_loss_model": r(fmean(log_loss(p["model_p"], p["y"]) for p in points)),
+        "log_loss_market": r(fmean(log_loss(p["market_price"], p["y"]) for p in points)),
+        "brier_model": r(fmean(brier(p["model_p"], p["y"]) for p in points)),
+        "brier_market": r(fmean(brier(p["market_price"], p["y"]) for p in points)),
+        "paired_logloss_diff": r(c["mean"]),
+        "paired_logloss_diff_ci95": [r(c["ci"][0]), r(c["ci"][1])],
+        "p_model_better": round(c["p_positive"], 4),
+        "games_to_resolve": games_to_resolve,
+    }

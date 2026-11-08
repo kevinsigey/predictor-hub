@@ -133,6 +133,29 @@ def settle(ledger, rows: list[dict], *, now: datetime | None = None) -> dict[str
         })
         settled_now[candidate_id] = status
         counts["void" if status == STATUS_VOID else "settled"] += 1
+
+    # Score rows settle the same way, from Kalshi's own result. They carry no
+    # stake, so there is no pnl; the outcome is all that is stored.
+    scores = ledger.scores()
+    if scores:
+        counts["scores_settled"] = counts["scores_void"] = 0
+    for row in scores:
+        score_id = row.get("id")
+        if score_id in settled_now:
+            continue
+        source = by_ticker.get(row.get("ticker"))
+        if source is None:
+            continue
+        status, outcome = resolution(source)
+        ledger.append({
+            "record": "settle", "id": score_id, "ticker": row.get("ticker"),
+            "settled_at": stamped, "status": status, "outcome": outcome,
+            "pnl_per_contract": None,
+            "source_snapshot_ts": source.get("snapshot_ts"),
+            "source_result": source.get("result"),
+        })
+        settled_now[score_id] = status
+        counts["scores_void" if status == STATUS_VOID else "scores_settled"] += 1
     return counts
 
 

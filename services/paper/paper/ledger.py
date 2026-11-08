@@ -48,6 +48,20 @@ STATUS_VOID = "void"
 KIND_CANDIDATE = "candidate"
 KIND_SHADOW = "shadow"
 
+#: A no-stake scoring observation (Q1: model vs market over EVERY priced game).
+#: Its own record type, so it can never be counted as a bet, candidate or P&L.
+RECORD_SCORE = "score"
+
+
+def score_id(*, sport: str, game_id: str, market: str, ticker: str | None = None) -> str:
+    """Stable id of a score row: one per (game, market); F1 adds the driver's ticker.
+
+    Salted with "score" so it can never collide with a candidate id and so a
+    settle record (keyed by id) can reference either kind unambiguously.
+    """
+    parts = ["score", sport, game_id, market, ticker or ""]
+    return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
+
 
 def candidate_id(*, sport: str, game_id: str, market: str, selection: str | None,
                  side: str, line: float | None) -> str:
@@ -150,6 +164,10 @@ class Ledger:
                 out[row["id"]] = row
         return out
 
+    def scores(self) -> list[dict]:
+        """Score rows (no stake, never bets). A separate population from candidates()."""
+        return [r for r in self.records() if r.get("record") == RECORD_SCORE]
+
     def price_updates(self) -> list[dict]:
         return [r for r in self.records() if r.get("record") == "price_update"]
 
@@ -183,10 +201,10 @@ class Ledger:
         on file with different fields — a settled row, or one logged earlier at
         another price. First write wins, always.
         """
-        seen = self.candidate_ids()
+        seen = self.candidate_ids() | {r["id"] for r in self.scores() if r.get("id")}
         fresh = []
         for record in records:
-            if record.get("record") != KIND_CANDIDATE:
+            if record.get("record") not in (KIND_CANDIDATE, RECORD_SCORE):
                 self.append(record)
                 continue
             if record["id"] in seen:
@@ -195,6 +213,21 @@ class Ledger:
             self.append(record)
             fresh.append(record)
         return fresh
+
+
+def resolved_scores(ledger: Ledger) -> list[dict]:
+    """Score rows with their settle record folded on, as new dicts (outcome yes/no/void)."""
+    settles = ledger.settles()
+    out = []
+    for row in ledger.scores():
+        merged = dict(row)
+        settle = settles.get(row.get("id"))
+        if settle:
+            merged["status"] = settle.get("status", STATUS_SETTLED)
+            merged["outcome"] = settle.get("outcome")
+            merged["settled_at"] = settle.get("settled_at")
+        out.append(merged)
+    return out
 
 
 def resolved(ledger: Ledger) -> list[dict]:

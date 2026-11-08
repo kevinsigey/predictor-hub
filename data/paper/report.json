@@ -581,6 +581,8 @@
   },
   "per_sport": {
     "cfb": {
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "excluded_legacy_total_rows": 0,
       "has_edge_claim": false,
       "mean_clv_cents": null,
@@ -611,6 +613,8 @@
       "why_not_yet": "superseded by a newer model; a fresh sample is required; pnl interval [-0.4600, -0.3400] is entirely below zero; pnl interval [-0.1175, 0.3900] includes zero; calibration gap widening (8.28 -> 20.04 pts)"
     },
     "f1": {
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "excluded_legacy_total_rows": 0,
       "has_edge_claim": false,
       "mean_clv_cents": null,
@@ -641,6 +645,8 @@
       "why_not_yet": "needs 267 more settled bets (has 33, needs 300); needs 97 more settled games (has 3, needs 100); the bets are spread over too few games to be independent evidence; pnl interval [-0.0400, -0.0300] is entirely below zero; shadow rows carry no stake and cannot support an edge claim"
     },
     "nba": {
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "excluded_legacy_total_rows": 0,
       "has_edge_claim": false,
       "mean_clv_cents": null,
@@ -671,6 +677,8 @@
       "why_not_yet": "needs 10 more settled games (has 90, needs 100); the bets are spread over too few games to be independent evidence; superseded by a newer model; a fresh sample is required; pnl interval [-0.4700, 0.3050] includes zero; shadow rows carry no stake and cannot support an edge claim; pnl interval [-0.4700, -0.4600] is entirely below zero"
     },
     "nfl": {
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "excluded_legacy_total_rows": 116,
       "has_edge_claim": false,
       "mean_clv_cents": null,
@@ -701,6 +709,8 @@
       "why_not_yet": "needs 186 more settled bets (has 114, needs 300); needs 75 more settled games (has 25, needs 100); the bets are spread over too few games to be independent evidence; pnl interval [-0.4471, 0.1329] includes zero; shadow rows carry no stake and cannot support an edge claim; pnl interval [-1.7071, -0.0329] is entirely below zero"
     },
     "pl": {
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "excluded_legacy_total_rows": 0,
       "has_edge_claim": false,
       "mean_clv_cents": null,
@@ -732,6 +742,121 @@
     }
   },
   "schema_version": 1,
+  "scoring": {
+    "docs": {
+      "clipping": "model_p and market_price are clipped to [0.01, 0.99] before log-loss and Brier.",
+      "games_to_resolve": "More games needed for the CI half-width to fall below 0.005 log-loss at the observed SD (iid approximation); null under 10 games.",
+      "market_price": "The buyable ask (not the mid).",
+      "n_games": "Distinct game_id (race for F1). n_from_score_rows / n_from_backfill count ROWS.",
+      "p_model_better": "Share of bootstrap draws with the paired difference > 0.",
+      "paired_logloss_diff": "Mean over games of (market log-loss - model log-loss), each game averaging its rows; positive = model better. 95% percentile bootstrap over games, 2000 resamples, fixed seed.",
+      "population": "Settled, non-void rows with model_p and market_price. Score rows (one per game+market, no stake, earliest pre-kickoff observation) first; candidate and shadow rows are a backfill only for (game_id, market) pairs that have no score row, deduped by (game_id, market, ticker), earliest logged_at wins. Backfill rows were selected for a >= 4 point model-over-market edge, so they flatter the model: read n_from_backfill as an upper bound on model quality until score rows dominate."
+    },
+    "per_sport": {
+      "cfb": {
+        "brier_market": 0.22696,
+        "brier_model": 0.269076,
+        "games_to_resolve": 9354,
+        "log_loss_market": 0.643559,
+        "log_loss_model": 0.733346,
+        "n_from_backfill": 1205,
+        "n_from_score_rows": 0,
+        "n_games": 131,
+        "n_rows": 1205,
+        "p_model_better": 0.0005,
+        "paired_logloss_diff": -0.071379,
+        "paired_logloss_diff_ci95": [
+          -0.114187,
+          -0.028855
+        ]
+      },
+      "f1": {
+        "brier_market": 0.036809,
+        "brier_model": 0.066402,
+        "games_to_resolve": null,
+        "log_loss_market": 0.163349,
+        "log_loss_model": 0.269847,
+        "n_from_backfill": 33,
+        "n_from_score_rows": 0,
+        "n_games": 3,
+        "n_rows": 33,
+        "p_model_better": 0.0,
+        "paired_logloss_diff": -0.094944,
+        "paired_logloss_diff_ci95": [
+          -0.121328,
+          -0.064248
+        ]
+      },
+      "nba": {
+        "brier_market": 0.221918,
+        "brier_model": 0.281494,
+        "games_to_resolve": 12087,
+        "log_loss_market": 0.631353,
+        "log_loss_model": 0.765674,
+        "n_from_backfill": 587,
+        "n_from_score_rows": 0,
+        "n_games": 90,
+        "n_rows": 587,
+        "p_model_better": 0.0,
+        "paired_logloss_diff": -0.126205,
+        "paired_logloss_diff_ci95": [
+          -0.186571,
+          -0.066652
+        ]
+      },
+      "nfl": {
+        "brier_market": 0.249494,
+        "brier_model": 0.312897,
+        "games_to_resolve": 10543,
+        "log_loss_market": 0.698494,
+        "log_loss_model": 0.891282,
+        "n_from_backfill": 114,
+        "n_from_score_rows": 0,
+        "n_games": 25,
+        "n_rows": 114,
+        "p_model_better": 0.023,
+        "paired_logloss_diff": -0.100452,
+        "paired_logloss_diff_ci95": [
+          -0.203848,
+          -0.002138
+        ]
+      },
+      "pl": {
+        "brier_market": 0.192304,
+        "brier_model": 0.286505,
+        "games_to_resolve": 11986,
+        "log_loss_market": 0.567914,
+        "log_loss_model": 0.791212,
+        "n_from_backfill": 27,
+        "n_from_score_rows": 0,
+        "n_games": 18,
+        "n_rows": 27,
+        "p_model_better": 0.001,
+        "paired_logloss_diff": -0.183317,
+        "paired_logloss_diff_ci95": [
+          -0.313209,
+          -0.065585
+        ]
+      }
+    },
+    "total": {
+      "brier_market": 0.223093,
+      "brier_model": 0.272162,
+      "games_to_resolve": 10334,
+      "log_loss_market": 0.634,
+      "log_loss_model": 0.745171,
+      "n_from_backfill": 1966,
+      "n_from_score_rows": 0,
+      "n_games": 267,
+      "n_rows": 1966,
+      "p_model_better": 0.0,
+      "paired_logloss_diff": -0.100393,
+      "paired_logloss_diff_ci95": [
+        -0.13238,
+        -0.068593
+      ]
+    }
+  },
   "segments": {
     "cfb:moneyline:0.50-0.60 :: ridge@2026-10-15T14:44:28.432620+00:00": {
       "calibration_gap_points": 54.52476666666667,
@@ -743,6 +868,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -792,6 +919,8 @@
         "n_settled": 12,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 12 settled bets, need 300",
         "only 12 settled games, need 100",
@@ -840,6 +969,8 @@
         "n_settled": 12,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 12 settled bets, need 300",
@@ -889,6 +1020,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 5 settled bets, need 300",
         "only 5 settled games, need 100",
@@ -937,6 +1070,8 @@
         "n_settled": 7,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 7 settled bets, need 300",
@@ -986,6 +1121,8 @@
         "n_settled": 12,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 12 settled bets, need 300",
         "only 12 settled games, need 100",
@@ -1034,6 +1171,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 5 settled bets, need 300",
@@ -1067,7 +1206,7 @@
       ],
       "qualifies_for_edge_claim": false,
       "realised_edge_points": -23.5601,
-      "roi": -0.0218,
+      "roi": -0.0217,
       "segment": "cfb:moneyline:0.80-0.90",
       "share_clv_positive": null,
       "sport": "cfb",
@@ -1083,6 +1222,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 5 settled bets, need 300",
         "only 5 settled games, need 100",
@@ -1131,6 +1272,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -1179,6 +1322,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 3 settled bets, need 300",
         "only 3 settled games, need 100",
@@ -1226,6 +1371,8 @@
         "n_settled": 81,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 81 settled bets, need 300",
@@ -1275,6 +1422,8 @@
         "n_settled": 172,
         "widening": true
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 172 settled bets, need 300",
         "only 65 settled games, need 100",
@@ -1323,6 +1472,8 @@
         "n_settled": 57,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 57 settled bets, need 300",
@@ -1372,6 +1523,8 @@
         "n_settled": 128,
         "widening": false
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 128 settled bets, need 300",
         "only 45 settled games, need 100",
@@ -1403,7 +1556,7 @@
       ],
       "qualifies_for_edge_claim": false,
       "realised_edge_points": -11.7091,
-      "roi": 0.0278,
+      "roi": 0.0277,
       "segment": "cfb:spread:0.60-0.70",
       "share_clv_positive": null,
       "sport": "cfb",
@@ -1419,6 +1572,8 @@
         "n_settled": 19,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 19 settled bets, need 300",
@@ -1468,6 +1623,8 @@
         "n_settled": 86,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 86 settled bets, need 300",
         "only 28 settled games, need 100",
@@ -1516,6 +1673,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -1565,6 +1724,8 @@
         "n_settled": 45,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 45 settled bets, need 300",
         "only 11 settled games, need 100",
@@ -1613,6 +1774,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 5 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -1660,6 +1823,8 @@
         "n_settled": 58,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 58 settled bets, need 300",
@@ -1709,6 +1874,8 @@
         "n_settled": 173,
         "widening": false
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 173 settled bets, need 300",
         "only 65 settled games, need 100",
@@ -1756,6 +1923,8 @@
         "n_settled": 56,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 56 settled bets, need 300",
@@ -1805,6 +1974,8 @@
         "n_settled": 126,
         "widening": true
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 126 settled bets, need 300",
         "only 54 settled games, need 100",
@@ -1853,6 +2024,8 @@
         "n_settled": 24,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 24 settled bets, need 300",
@@ -1902,6 +2075,8 @@
         "n_settled": 55,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 55 settled bets, need 300",
         "only 32 settled games, need 100",
@@ -1950,6 +2125,8 @@
         "n_settled": 10,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 10 settled bets, need 300",
@@ -1999,6 +2176,8 @@
         "n_settled": 29,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 29 settled bets, need 300",
         "only 20 settled games, need 100",
@@ -2047,6 +2226,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -2095,6 +2276,8 @@
         "n_settled": 10,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 10 settled bets, need 300",
         "only 5 settled games, need 100",
@@ -2143,6 +2326,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 2 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -2191,6 +2376,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 2 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -2239,6 +2426,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 2 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -2287,6 +2476,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 1 settled bets, need 300",
         "only 1 settled games, need 100",
@@ -2335,6 +2526,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 2 settled bets, need 300",
         "only 1 settled games, need 100",
@@ -2383,6 +2576,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -2428,6 +2623,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 3 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -2476,6 +2673,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 5 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -2524,6 +2723,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -2569,6 +2770,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 5 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -2617,6 +2820,8 @@
         "n_settled": 7,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 7 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -2665,6 +2870,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 1 settled bets, need 300",
         "only 1 settled games, need 100",
@@ -2713,6 +2920,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 1 settled bets, need 300",
         "only 1 settled games, need 100",
@@ -2760,6 +2969,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 1 settled bets, need 300",
         "only 1 settled games, need 100",
@@ -2808,6 +3019,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "only 1 settled bets, need 300",
@@ -2856,6 +3069,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -2905,6 +3120,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "superseded by a newer model; a fresh sample is required",
@@ -2955,6 +3172,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 5 settled bets, need 300",
@@ -3004,6 +3223,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3053,6 +3274,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3102,6 +3325,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -3151,6 +3376,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3200,6 +3427,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -3249,6 +3478,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3298,6 +3529,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -3346,6 +3579,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -3395,6 +3630,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -3444,6 +3681,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3493,6 +3732,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3541,6 +3782,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3590,6 +3833,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 2 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -3637,6 +3882,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -3686,6 +3933,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3735,6 +3984,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "superseded by a newer model; a fresh sample is required",
@@ -3785,6 +4036,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -3833,6 +4086,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3882,6 +4137,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3931,6 +4188,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -3980,6 +4239,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -4028,6 +4289,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "superseded by a newer model; a fresh sample is required",
@@ -4078,6 +4341,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -4127,6 +4392,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -4176,6 +4443,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -4224,6 +4493,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 0 settled bets, need 300",
@@ -4270,6 +4541,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -4315,6 +4588,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -4363,6 +4638,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "superseded by a newer model; a fresh sample is required",
@@ -4413,6 +4690,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -4461,6 +4740,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -4510,6 +4791,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -4559,6 +4842,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -4608,6 +4893,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -4657,6 +4944,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -4706,6 +4995,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "superseded by a newer model; a fresh sample is required",
@@ -4756,6 +5047,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -4801,6 +5094,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "superseded by a newer model; a fresh sample is required",
@@ -4850,6 +5145,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -4898,6 +5195,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -4946,6 +5245,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -4994,6 +5295,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -5042,6 +5345,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -5087,6 +5392,8 @@
         "n_settled": 9,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 9 settled bets, need 300",
@@ -5136,6 +5443,8 @@
         "n_settled": 13,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 13 settled bets, need 300",
@@ -5185,6 +5494,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "superseded by a newer model; a fresh sample is required",
@@ -5235,6 +5546,8 @@
         "n_settled": 8,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 8 settled bets, need 300",
@@ -5284,6 +5597,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -5333,6 +5648,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -5382,6 +5699,8 @@
         "n_settled": 22,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 22 settled bets, need 300",
@@ -5431,6 +5750,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -5479,6 +5800,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 5 settled bets, need 300",
@@ -5528,6 +5851,8 @@
         "n_settled": 11,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 11 settled bets, need 300",
@@ -5577,6 +5902,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -5626,6 +5953,8 @@
         "n_settled": 6,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 6 settled bets, need 300",
@@ -5675,6 +6004,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -5723,6 +6054,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -5772,6 +6105,8 @@
         "n_settled": 10,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 10 settled bets, need 300",
@@ -5821,6 +6156,8 @@
         "n_settled": 17,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 17 settled bets, need 300",
@@ -5870,6 +6207,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 5 settled bets, need 300",
@@ -5919,6 +6258,8 @@
         "n_settled": 6,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 6 settled bets, need 300",
@@ -5968,6 +6309,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -6016,6 +6359,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -6061,6 +6406,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 5 settled bets, need 300",
@@ -6110,6 +6457,8 @@
         "n_settled": 7,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 7 settled bets, need 300",
@@ -6159,6 +6508,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -6208,6 +6559,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -6257,6 +6610,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -6306,6 +6661,8 @@
         "n_settled": 6,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 6 settled bets, need 300",
@@ -6355,6 +6712,8 @@
         "n_settled": 8,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 8 settled bets, need 300",
@@ -6404,6 +6763,8 @@
         "n_settled": 7,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 7 settled bets, need 300",
@@ -6453,6 +6814,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -6502,6 +6865,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -6550,6 +6915,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -6599,6 +6966,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -6648,6 +7017,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 5 settled bets, need 300",
@@ -6697,6 +7068,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -6746,6 +7119,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -6794,6 +7169,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -6839,6 +7216,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -6887,6 +7266,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -6936,6 +7317,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -6985,6 +7368,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -7033,6 +7418,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -7081,6 +7468,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -7130,6 +7519,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 1 settled bets, need 300",
         "only 1 settled games, need 100",
@@ -7177,6 +7568,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 1 settled bets, need 300",
         "only 1 settled games, need 100",
@@ -7224,6 +7617,8 @@
         "n_settled": 8,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 8 settled bets, need 300",
@@ -7273,6 +7668,8 @@
         "n_settled": 9,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 9 settled bets, need 300",
@@ -7322,6 +7719,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 5 settled bets, need 300",
@@ -7371,6 +7770,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -7420,6 +7821,8 @@
         "n_settled": 9,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 9 settled bets, need 300",
@@ -7469,6 +7872,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -7517,6 +7922,8 @@
         "n_settled": 12,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 12 settled bets, need 300",
@@ -7566,6 +7973,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -7614,6 +8023,8 @@
         "n_settled": 17,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 17 settled bets, need 300",
@@ -7663,6 +8074,8 @@
         "n_settled": 11,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 11 settled bets, need 300",
@@ -7712,6 +8125,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -7760,6 +8175,8 @@
         "n_settled": 10,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 10 settled bets, need 300",
@@ -7809,6 +8226,8 @@
         "n_settled": 9,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 9 settled bets, need 300",
@@ -7858,6 +8277,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -7903,6 +8324,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -7952,6 +8375,8 @@
         "n_settled": 11,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 11 settled bets, need 300",
@@ -8001,6 +8426,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -8050,6 +8477,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -8099,6 +8528,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -8148,6 +8579,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -8197,6 +8630,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -8245,6 +8680,8 @@
         "n_settled": 8,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 8 settled bets, need 300",
@@ -8294,6 +8731,8 @@
         "n_settled": 14,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 14 settled bets, need 300",
@@ -8343,6 +8782,8 @@
         "n_settled": 10,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 10 settled bets, need 300",
@@ -8392,6 +8833,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -8440,6 +8883,8 @@
         "n_settled": 10,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 10 settled bets, need 300",
@@ -8489,6 +8934,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -8538,6 +8985,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -8583,6 +9032,8 @@
         "n_settled": 6,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 6 settled bets, need 300",
@@ -8632,6 +9083,8 @@
         "n_settled": 9,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 9 settled bets, need 300",
@@ -8681,6 +9134,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -8730,6 +9185,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -8778,6 +9235,8 @@
         "n_settled": 6,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 6 settled bets, need 300",
@@ -8827,6 +9286,8 @@
         "n_settled": 8,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 8 settled bets, need 300",
@@ -8876,6 +9337,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -8925,6 +9388,8 @@
         "n_settled": 10,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 10 settled bets, need 300",
@@ -8974,6 +9439,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -9023,6 +9490,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -9071,6 +9540,8 @@
         "n_settled": 8,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 8 settled bets, need 300",
@@ -9120,6 +9591,8 @@
         "n_settled": 6,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 6 settled bets, need 300",
@@ -9169,6 +9642,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -9214,6 +9689,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -9263,6 +9740,8 @@
         "n_settled": 8,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 8 settled bets, need 300",
@@ -9312,6 +9791,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -9360,6 +9841,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -9409,6 +9892,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 5 settled bets, need 300",
@@ -9458,6 +9943,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -9506,6 +9993,8 @@
         "n_settled": 7,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 7 settled bets, need 300",
@@ -9555,6 +10044,8 @@
         "n_settled": 7,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 7 settled bets, need 300",
@@ -9604,6 +10095,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -9652,6 +10145,8 @@
         "n_settled": 6,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 6 settled bets, need 300",
@@ -9700,6 +10195,8 @@
         "n_settled": 5,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 5 settled bets, need 300",
@@ -9748,6 +10245,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -9793,6 +10292,8 @@
         "n_settled": 3,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 3 settled bets, need 300",
@@ -9842,6 +10343,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 2 settled bets, need 300",
@@ -9890,6 +10393,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 4 settled bets, need 300",
@@ -9939,6 +10444,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -9987,6 +10494,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 1 settled bets, need 300",
@@ -10035,6 +10544,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "superseded by a newer model; a fresh sample is required",
         "only 0 settled bets, need 300",
@@ -10081,6 +10592,8 @@
         "n_settled": 0,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 0 settled bets, need 300",
         "only 0 settled games, need 100",
@@ -10126,6 +10639,8 @@
         "n_settled": 7,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 7 settled bets, need 300",
         "only 7 settled games, need 100",
@@ -10174,6 +10689,8 @@
         "n_settled": 6,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 6 settled bets, need 300",
         "only 6 settled games, need 100",
@@ -10222,6 +10739,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 4 settled bets, need 300",
         "only 4 settled games, need 100",
@@ -10269,6 +10788,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "only 1 settled bets, need 300",
@@ -10317,6 +10838,8 @@
         "n_settled": 21,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 21 settled bets, need 300",
         "only 11 settled games, need 100",
@@ -10365,6 +10888,8 @@
         "n_settled": 19,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 19 settled bets, need 300",
         "only 11 settled games, need 100",
@@ -10413,6 +10938,8 @@
         "n_settled": 23,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 23 settled bets, need 300",
         "only 12 settled games, need 100",
@@ -10461,6 +10988,8 @@
         "n_settled": 18,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 18 settled bets, need 300",
         "only 10 settled games, need 100",
@@ -10509,6 +11038,8 @@
         "n_settled": 15,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 15 settled bets, need 300",
         "only 7 settled games, need 100",
@@ -10557,6 +11088,8 @@
         "n_settled": 7,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 7 settled bets, need 300",
         "only 7 settled games, need 100",
@@ -10605,6 +11138,8 @@
         "n_settled": 7,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 7 settled bets, need 300",
         "only 7 settled games, need 100",
@@ -10653,6 +11188,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 2 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -10701,6 +11238,8 @@
         "n_settled": 4,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 4 settled bets, need 300",
         "only 4 settled games, need 100",
@@ -10749,6 +11288,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "only 2 settled bets, need 300",
@@ -10798,6 +11339,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 2 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -10846,6 +11389,8 @@
         "n_settled": 2,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "only 2 settled bets, need 300",
         "only 2 settled games, need 100",
@@ -10893,6 +11438,8 @@
         "n_settled": 1,
         "widening": null
       },
+      "clv_bets_to_resolve": null,
+      "clv_ci95": null,
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
         "only 1 settled bets, need 300",
@@ -10934,13 +11481,428 @@
     }
   },
   "totals": {
+    "clv_bets_to_resolve": null,
+    "clv_ci95": null,
     "excluded_legacy_total_rows": 116,
+    "mean_clv_cents": null,
     "n_candidates": 1970,
+    "n_clv": 0,
     "n_logged": 2103,
     "n_settled": 1966,
     "n_shadow": 133,
     "segment_groups": 211,
     "segments": 60,
-    "segments_qualifying": 0
+    "segments_qualifying": 0,
+    "share_clv_positive": null
+  },
+  "verdicts": {
+    "config": {
+      "min_events": {
+        "default": 50,
+        "f1": 20,
+        "pl": 60
+      },
+      "min_settled_bets": 100
+    },
+    "per_sport": {
+      "cfb": {
+        "all_time": {
+          "calibration_trend": {
+            "gap_early": 22.127260034013606,
+            "gap_late": 14.352483673469397,
+            "measurable": true,
+            "min_n": 100,
+            "n_settled": 1176,
+            "widening": false
+          },
+          "min_events": 50,
+          "min_settled_bets": 100,
+          "n_events": 131,
+          "n_settled_bets": 1176,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": -0.0578,
+          "pnl_per_contract_ci95": [
+            -0.1206,
+            0.0073
+          ],
+          "pnl_sd_per_contract": 0.4752,
+          "q1_n_games": 131,
+          "q1_p_model_better": 0.0005,
+          "q1_paired_logloss_diff": -0.071379,
+          "q1_paired_logloss_diff_ci95": [
+            -0.114187,
+            -0.028855
+          ],
+          "reasons": [
+            "paired log-loss interval is entirely on the market-better side"
+          ],
+          "status": "against"
+        },
+        "current_model_only": {
+          "calibration_trend": {
+            "gap_early": 17.90676387559809,
+            "gap_late": 13.68848735083532,
+            "measurable": true,
+            "min_n": 100,
+            "n_settled": 837,
+            "widening": false
+          },
+          "min_events": 50,
+          "min_settled_bets": 100,
+          "n_events": 107,
+          "n_settled_bets": 837,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": -0.0238,
+          "pnl_per_contract_ci95": [
+            -0.098,
+            0.0531
+          ],
+          "pnl_sd_per_contract": 0.4745,
+          "q1_n_games": 108,
+          "q1_p_model_better": 0.002,
+          "q1_paired_logloss_diff": -0.07472,
+          "q1_paired_logloss_diff_ci95": [
+            -0.128688,
+            -0.020096
+          ],
+          "reasons": [
+            "paired log-loss interval is entirely on the market-better side"
+          ],
+          "status": "against"
+        }
+      },
+      "f1": {
+        "all_time": {
+          "calibration_trend": {
+            "gap_early": null,
+            "gap_late": null,
+            "measurable": false,
+            "min_n": 100,
+            "n_settled": 23,
+            "widening": null
+          },
+          "min_events": 20,
+          "min_settled_bets": 100,
+          "n_events": 3,
+          "n_settled_bets": 23,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": -0.0935,
+          "pnl_per_contract_ci95": [
+            -0.1375,
+            -0.055
+          ],
+          "pnl_sd_per_contract": 0.1836,
+          "q1_n_games": 3,
+          "q1_p_model_better": 0.0,
+          "q1_paired_logloss_diff": -0.094944,
+          "q1_paired_logloss_diff_ci95": [
+            -0.121328,
+            -0.064248
+          ],
+          "reasons": [
+            "23 settled bets over 3 games; need 100 bets and 20 games",
+            "3 scored games; need 20 for the Q1 claim"
+          ],
+          "status": "not_yet"
+        },
+        "current_model_only": {
+          "calibration_trend": {
+            "gap_early": null,
+            "gap_late": null,
+            "measurable": false,
+            "min_n": 100,
+            "n_settled": 23,
+            "widening": null
+          },
+          "min_events": 20,
+          "min_settled_bets": 100,
+          "n_events": 3,
+          "n_settled_bets": 23,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": -0.0935,
+          "pnl_per_contract_ci95": [
+            -0.1375,
+            -0.055
+          ],
+          "pnl_sd_per_contract": 0.1836,
+          "q1_n_games": 3,
+          "q1_p_model_better": 0.0,
+          "q1_paired_logloss_diff": -0.094944,
+          "q1_paired_logloss_diff_ci95": [
+            -0.121328,
+            -0.064248
+          ],
+          "reasons": [
+            "23 settled bets over 3 games; need 100 bets and 20 games",
+            "3 scored games; need 20 for the Q1 claim"
+          ],
+          "status": "not_yet"
+        }
+      },
+      "nba": {
+        "all_time": {
+          "calibration_trend": {
+            "gap_early": 31.026884341637007,
+            "gap_late": 16.649668085106384,
+            "measurable": true,
+            "min_n": 100,
+            "n_settled": 563,
+            "widening": false
+          },
+          "min_events": 50,
+          "min_settled_bets": 100,
+          "n_events": 84,
+          "n_settled_bets": 563,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": -0.0779,
+          "pnl_per_contract_ci95": [
+            -0.1711,
+            0.01
+          ],
+          "pnl_sd_per_contract": 0.4668,
+          "q1_n_games": 90,
+          "q1_p_model_better": 0.0,
+          "q1_paired_logloss_diff": -0.126205,
+          "q1_paired_logloss_diff_ci95": [
+            -0.186571,
+            -0.066652
+          ],
+          "reasons": [
+            "paired log-loss interval is entirely on the market-better side"
+          ],
+          "status": "against"
+        },
+        "current_model_only": {
+          "calibration_trend": {
+            "gap_early": null,
+            "gap_late": null,
+            "measurable": false,
+            "min_n": 100,
+            "n_settled": 0,
+            "widening": null
+          },
+          "min_events": 50,
+          "min_settled_bets": 100,
+          "n_events": 0,
+          "n_settled_bets": 0,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": null,
+          "pnl_per_contract_ci95": null,
+          "pnl_sd_per_contract": null,
+          "q1_n_games": 0,
+          "q1_p_model_better": null,
+          "q1_paired_logloss_diff": null,
+          "q1_paired_logloss_diff_ci95": null,
+          "reasons": [
+            "0 settled bets over 0 games; need 100 bets and 50 games",
+            "0 scored games; need 50 for the Q1 claim"
+          ],
+          "status": "not_yet"
+        }
+      },
+      "nfl": {
+        "all_time": {
+          "calibration_trend": {
+            "gap_early": null,
+            "gap_late": null,
+            "measurable": false,
+            "min_n": 100,
+            "n_settled": 65,
+            "widening": null
+          },
+          "min_events": 50,
+          "min_settled_bets": 100,
+          "n_events": 19,
+          "n_settled_bets": 65,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": -0.1094,
+          "pnl_per_contract_ci95": [
+            -0.3312,
+            0.0935
+          ],
+          "pnl_sd_per_contract": 0.48,
+          "q1_n_games": 25,
+          "q1_p_model_better": 0.023,
+          "q1_paired_logloss_diff": -0.100452,
+          "q1_paired_logloss_diff_ci95": [
+            -0.203848,
+            -0.002138
+          ],
+          "reasons": [
+            "65 settled bets over 19 games; need 100 bets and 50 games",
+            "25 scored games; need 50 for the Q1 claim"
+          ],
+          "status": "not_yet"
+        },
+        "current_model_only": {
+          "calibration_trend": {
+            "gap_early": null,
+            "gap_late": null,
+            "measurable": false,
+            "min_n": 100,
+            "n_settled": 65,
+            "widening": null
+          },
+          "min_events": 50,
+          "min_settled_bets": 100,
+          "n_events": 19,
+          "n_settled_bets": 65,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": -0.1094,
+          "pnl_per_contract_ci95": [
+            -0.3312,
+            0.0935
+          ],
+          "pnl_sd_per_contract": 0.48,
+          "q1_n_games": 25,
+          "q1_p_model_better": 0.023,
+          "q1_paired_logloss_diff": -0.100452,
+          "q1_paired_logloss_diff_ci95": [
+            -0.203848,
+            -0.002138
+          ],
+          "reasons": [
+            "65 settled bets over 19 games; need 100 bets and 50 games",
+            "25 scored games; need 50 for the Q1 claim"
+          ],
+          "status": "not_yet"
+        }
+      },
+      "pl": {
+        "all_time": {
+          "calibration_trend": {
+            "gap_early": null,
+            "gap_late": null,
+            "measurable": false,
+            "min_n": 100,
+            "n_settled": 11,
+            "widening": null
+          },
+          "min_events": 60,
+          "min_settled_bets": 100,
+          "n_events": 8,
+          "n_settled_bets": 11,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": -0.1345,
+          "pnl_per_contract_ci95": [
+            -0.4513,
+            0.146
+          ],
+          "pnl_sd_per_contract": 0.4334,
+          "q1_n_games": 18,
+          "q1_p_model_better": 0.001,
+          "q1_paired_logloss_diff": -0.183317,
+          "q1_paired_logloss_diff_ci95": [
+            -0.313209,
+            -0.065585
+          ],
+          "reasons": [
+            "11 settled bets over 8 games; need 100 bets and 60 games",
+            "18 scored games; need 60 for the Q1 claim"
+          ],
+          "status": "not_yet"
+        },
+        "current_model_only": {
+          "calibration_trend": {
+            "gap_early": null,
+            "gap_late": null,
+            "measurable": false,
+            "min_n": 100,
+            "n_settled": 11,
+            "widening": null
+          },
+          "min_events": 60,
+          "min_settled_bets": 100,
+          "n_events": 8,
+          "n_settled_bets": 11,
+          "needed_bets_at_observed_effect": null,
+          "pnl_per_contract": -0.1345,
+          "pnl_per_contract_ci95": [
+            -0.4513,
+            0.146
+          ],
+          "pnl_sd_per_contract": 0.4334,
+          "q1_n_games": 18,
+          "q1_p_model_better": 0.001,
+          "q1_paired_logloss_diff": -0.183317,
+          "q1_paired_logloss_diff_ci95": [
+            -0.313209,
+            -0.065585
+          ],
+          "reasons": [
+            "11 settled bets over 8 games; need 100 bets and 60 games",
+            "18 scored games; need 60 for the Q1 claim"
+          ],
+          "status": "not_yet"
+        }
+      }
+    },
+    "pooled": {
+      "all_time": {
+        "calibration_trend": {
+          "gap_early": 23.894136887921658,
+          "gap_late": 16.215393579978237,
+          "measurable": true,
+          "min_n": 100,
+          "n_settled": 1838,
+          "widening": false
+        },
+        "min_events": 50,
+        "min_settled_bets": 100,
+        "n_events": 245,
+        "n_settled_bets": 1838,
+        "needed_bets_at_observed_effect": null,
+        "pnl_per_contract": -0.0667,
+        "pnl_per_contract_ci95": [
+          -0.1205,
+          -0.0161
+        ],
+        "pnl_sd_per_contract": 0.4699,
+        "q1_n_games": 267,
+        "q1_p_model_better": 0.0,
+        "q1_paired_logloss_diff": -0.100393,
+        "q1_paired_logloss_diff_ci95": [
+          -0.13238,
+          -0.068593
+        ],
+        "reasons": [
+          "P&L interval is entirely below zero",
+          "paired log-loss interval is entirely on the market-better side"
+        ],
+        "status": "against"
+      },
+      "current_model_only": {
+        "calibration_trend": {
+          "gap_early": 17.624320512820514,
+          "gap_late": 14.891302991452992,
+          "measurable": true,
+          "min_n": 100,
+          "n_settled": 936,
+          "widening": false
+        },
+        "min_events": 50,
+        "min_settled_bets": 100,
+        "n_events": 137,
+        "n_settled_bets": 936,
+        "needed_bets_at_observed_effect": null,
+        "pnl_per_contract": -0.0327,
+        "pnl_per_contract_ci95": [
+          -0.1024,
+          0.0356
+        ],
+        "pnl_sd_per_contract": 0.4696,
+        "q1_n_games": 154,
+        "q1_p_model_better": 0.0,
+        "q1_paired_logloss_diff": -0.091984,
+        "q1_paired_logloss_diff_ci95": [
+          -0.137126,
+          -0.050847
+        ],
+        "reasons": [
+          "paired log-loss interval is entirely on the market-better side"
+        ],
+        "status": "against"
+      }
+    }
   }
 }
