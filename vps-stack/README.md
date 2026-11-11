@@ -36,6 +36,7 @@ RAM in total (cfb 415 MB, f1 376, nba 328, nfl 246, pl 245, caddy 44, sports 64)
 | `bin/pull-azure-volumes.sh` | Copies the NBA/NFL/CFB Azure file shares to the VPS. |
 | `bin/set-github-secrets.sh` | Sets `VPS_HOST`, `VPS_SSH_KEY`, `VPS_KNOWN_HOSTS` in all 7 repos. |
 | `bin/tradehub-job`, `systemd/` | Hourly trade hub scan/settle (installed, off until the trade hub ships). |
+| `bin/nba-db-backup`, `systemd/nba-db-backup.*` | Daily 12:30 UTC: integrity-check the NBA tracking DB and copy it to `volumes/nba-tracking/backups/`, keeping 14 (two a day: the rescore service also pulls the backup in first, so a catch-up run after downtime is covered). Runs before the 13:40 rescore that writes it. |
 
 ---
 
@@ -142,6 +143,7 @@ docker stats --no-stream                 # memory
   and on the server `docker compose up -d` (plus `docker compose restart caddy` for Caddyfile changes). Consider pushing this folder to a private GitHub repo so it's backed up.
 - **OS updates** install automatically (unattended-upgrades). Reboot now and then: `sudo reboot`. Every container restarts on its own.
 - **Tracking databases:** NBA/NFL/CFB data lives in `/opt/stack/volumes/` and survives redeploys. PL and F1 behave as they did on Azure (their track record ships in the image and is kept current by their GitHub Actions).
+- **NBA tracking DB backups:** `systemd/nba-db-backup.timer` takes a verified copy every day at 12:30 UTC into `volumes/nba-tracking/backups/` (14 kept). If it fails, `systemctl --failed` says so — that check is the early warning for the corruption that took the games page down on 2026-10-26. Restore with `cp volumes/nba-tracking/backups/tracking-<stamp>.db volumes/nba-tracking/tracking.db` while the `nba` container is stopped.
 
 ## Algo Trade Hub (later)
 

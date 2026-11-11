@@ -114,8 +114,9 @@ systemctl reload ssh || systemctl restart ssh
 echo "==> trade hub timers (installed, NOT enabled)"
 cp "$STACK_DIR"/systemd/tradehub-*.{service,timer} /etc/systemd/system/
 cp "$STACK_DIR"/systemd/nba-{rescore,scores}.{service,timer} /etc/systemd/system/   # enabled below: nothing else re-scores NBA upcoming games
+cp "$STACK_DIR"/systemd/nba-db-backup.{service,timer} /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable nba-rescore.timer nba-scores.timer
+systemctl enable nba-rescore.timer nba-scores.timer nba-db-backup.timer
 
 cat <<EOF
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily NBA tracking DB backup
+
+[Timer]
+# BEFORE the 13:40 UTC nba-rescore, which writes the DB. A backup taken after a
+# corrupting write is not a backup. Persistent=true catches up a missed run on
+# the next boot.
+OnCalendar=*-*-* 12:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
