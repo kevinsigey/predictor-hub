@@ -25,3 +25,5 @@
 {"no_price": 0.97, "observed_at": "2026-11-09T00:07:44+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV08ARISEA-33", "yes_price": 0.04}
 {"no_price": 0.95, "observed_at": "2026-11-09T00:07:44+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV08ARISEA-30", "yes_price": 0.06}
 {"no_price": 0.75, "observed_at": "2026-11-09T00:07:44+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV08ARISEA-27", "yes_price": 0.26}
+{"no_price": 0.82, "observed_at": "2026-11-14T02:42:23+00:00", "source": "kalshi-public", "ticker": "KXNBAGAME-26NOV13NYKIND-NYK", "yes_price": 0.2}
+{"no_price": 0.96, "observed_at": "2026-11-14T02:42:23+00:00", "source": "kalshi-public", "ticker": "KXNCAAFTOTAL-26NOV13FSUPITT-53", "yes_price": 0.05}
