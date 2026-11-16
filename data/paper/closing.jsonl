@@ -84,3 +84,10 @@
 {"no_price": 0.67, "observed_at": "2026-11-15T20:15:05+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15BUFNYJ-50", "yes_price": 0.35}
 {"no_price": 0.57, "observed_at": "2026-11-15T20:15:05+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15BUFNYJ-47", "yes_price": 0.44}
 {"no_price": 0.8, "observed_at": "2026-11-15T20:15:05+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15BUFNYJ-53", "yes_price": 0.21}
+{"no_price": null, "observed_at": "2026-11-16T00:02:04+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15SEALV-44", "yes_price": 0.01}
+{"no_price": null, "observed_at": "2026-11-16T00:02:04+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15SEALV-45", "yes_price": 0.01}
+{"no_price": null, "observed_at": "2026-11-16T00:02:04+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15SEALV-43", "yes_price": 0.01}
+{"no_price": null, "observed_at": "2026-11-16T00:02:04+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15SEALV-41", "yes_price": 0.01}
+{"no_price": null, "observed_at": "2026-11-16T00:02:04+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15SEALV-38", "yes_price": 0.01}
+{"no_price": null, "observed_at": "2026-11-16T00:02:04+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15SEALV-42", "yes_price": 0.01}
+{"no_price": null, "observed_at": "2026-11-16T00:02:04+00:00", "source": "kalshi-public", "ticker": "KXNFLTOTAL-26NOV15SEALV-35", "yes_price": 0.01}
