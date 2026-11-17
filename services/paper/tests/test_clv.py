@@ -63,6 +63,7 @@ def ledger_row(**over) -> dict:
         "segment": "nfl:moneyline:0.60-0.70", "stake": 5.0,
         "status": "open", "outcome": None, "pnl_per_contract": None,
         "price_observed_at": "2026-10-17T20:00:00+00:00", "kickoff": KICKOFF,
+        "expected_end": "2026-10-18T20:00:00+00:00",  # post-fix row: kickoff is the true start
     }
     base.update(over)
     return base

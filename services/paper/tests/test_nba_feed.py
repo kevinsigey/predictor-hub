@@ -25,6 +25,7 @@ from paper.log import candidate_rows
 
 KICKOFF = "2026-11-01T19:00:00+00:00"
 PRICE_TS = "2026-11-01T12:30:00+00:00"
+SCHEDULE = {"schedule": [{"game_id": "g1", "tip_off": "2026-11-01T19:00Z"}]}  # the site's tip_off
 
 
 def _pick(
@@ -102,7 +103,7 @@ def test_snapshot_games_reads_the_picks_history(monkeypatch: pytest.MonkeyPatch,
     )
     monkeypatch.setenv("SITES_ROOT", str(root))
 
-    games = facts_mod.snapshot_games(None, "nba")
+    games = facts_mod.snapshot_games(SCHEDULE, "nba")
 
     assert set(games) == {"g1", "g2"}
     g1 = games["g1"]
@@ -122,7 +123,7 @@ def test_snapshot_games_reads_the_picks_history(monkeypatch: pytest.MonkeyPatch,
 
 def test_snapshot_games_is_empty_without_a_picks_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SITES_ROOT", str(tmp_path / "sites"))
-    assert facts_mod.snapshot_games(None, "nba") == {}
+    assert facts_mod.snapshot_games(SCHEDULE, "nba") == {}
 
 
 def test_a_pick_made_after_the_price_is_a_shadow_never_staked(
@@ -131,7 +132,7 @@ def test_a_pick_made_after_the_price_is_a_shadow_never_staked(
     root = _root_with_picks(tmp_path, [_pick("g1", "2026-11-01T14:00:00+00:00", 0.60)])
     monkeypatch.setenv("SITES_ROOT", str(root))
 
-    games = facts_mod.snapshot_games(None, "nba")
+    games = facts_mod.snapshot_games(SCHEDULE, "nba")
     made, skipped = candidate_rows([_kalshi_row()], {"nba": games}, config())
 
     assert len(made) == 1
@@ -148,7 +149,7 @@ def test_a_pick_made_before_the_price_is_a_candidate(
     root = _root_with_picks(tmp_path, [_pick("g1", "2026-10-18T12:00:00+00:00", 0.60)])
     monkeypatch.setenv("SITES_ROOT", str(root))
 
-    games = facts_mod.snapshot_games(None, "nba")
+    games = facts_mod.snapshot_games(SCHEDULE, "nba")
     made, skipped = candidate_rows([_kalshi_row()], {"nba": games}, config())
 
     assert len(made) == 1

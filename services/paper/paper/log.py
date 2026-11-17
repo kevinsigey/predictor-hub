@@ -47,6 +47,7 @@ from .segments import bucket_label, edge_threshold, match, segment_key
 SKIP_REASONS = (
     "unreadable_snapshot_ts",
     "no_kickoff",
+    "no_game_start",
     "price_at_or_after_kickoff",
     "not_a_game_market",
     "no_matching_game",
@@ -282,6 +283,9 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
         if start is None:
             skip("no_kickoff")
             continue
+        # Kalshi's occurrence is the expected END, about three hours after the
+        # start. Kept as `expected_end`; the cutoff is the site's own start.
+        expected_end = start
         if seen_at >= start:
             skip("price_at_or_after_kickoff")
             continue
@@ -315,6 +319,13 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
             game = sources.join_games(parts, games_by_sport.get(sport) or {})
             if game is None:
                 skip("no_matching_game")
+                continue
+            start = game.get("start")
+            if start is None:
+                skip("no_game_start")  # no true start, so no proof the price is pre-game
+                continue
+            if seen_at >= start:
+                skip("price_at_or_after_kickoff")
                 continue
 
             # A Kalshi "<TEAM> wins" rung is the YES contract on that team.
@@ -389,7 +400,8 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
             scores.append({"sport": sport, "market": market, "game_id": game["game_id"],
                            "ticker": row.get("ticker"), "selection": pick, "line": row.get("line"),
                            "model_p": model_p, "price": price, "seen_at": seen_at,
-                           "yes_bid": row.get("yes_bid"), "kickoff": start, "home": game.get("home"),
+                           "yes_bid": row.get("yes_bid"), "kickoff": start,
+                           "expected_end": expected_end, "home": game.get("home"),
                            "fingerprint": game.get("model_fingerprint"),
                            "allow_listed": allowed is not None})
 
@@ -459,6 +471,7 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
             "market_price": price,
             "price_observed_at": _iso(seen_at),
             "kickoff": _iso(start),
+            "expected_end": _iso(expected_end),
             "fee_cents": fee_cents,
             "fee": round(fee, 6),
             "edge": edge,
@@ -529,6 +542,7 @@ def score_records(observations: list[dict]) -> list[dict]:
             "market_price": ask,
             "market_mid": None if mid is None else round(mid, 6),
             "kickoff": _iso(pick["kickoff"]),
+            "expected_end": _iso(pick.get("expected_end")),
             "logged_at": _iso(pick["seen_at"]),
             "price_observed_at": _iso(pick["seen_at"]),
             "model_fingerprint": pick["fingerprint"],

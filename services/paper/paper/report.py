@@ -549,8 +549,63 @@ def build_verdicts(rows: list[dict], points: list[dict], scores: list[dict], spo
             "pooled": both(None, default)}
 
 
+def apply_exclusions(rows: list[dict], scores: list[dict], starts: dict | None):
+    """Drop rows no figure may use. Returns (rows, scores, counts[reason][sport]).
+
+    The ledger is append-only, so old rows are never rewritten; the report
+    re-derives each row's true start (`sources.row_start`) and excludes:
+      in_play          price observed at or after the true start;
+      unresolved_start an old row whose game is not in any site schedule, so
+                       its price cannot be shown to be pre-game;
+      same_p           NFL total rows of one game and log run (same
+                       `logged_at`) where different lines carry the SAME
+                       model_p: one probability was stamped on several lines.
+    `starts=None` (no schedules available) keeps only the same_p rule and
+    trusts each row's own kickoff.
+    """
+    counts: dict[str, dict[str, int]] = {"in_play": {}, "unresolved_start": {}, "same_p": {}}
+
+    def bump(reason, row):
+        sport = str(row.get("sport"))
+        counts[reason][sport] = counts[reason].get(sport, 0) + 1
+
+    def pre_game(row):
+        if starts is None:
+            return True
+        start = sources.row_start(row, starts)
+        if start is None:
+            bump("unresolved_start", row)
+            return False
+        seen = sources.parse_ts(row.get("price_observed_at"))
+        if seen is None or seen >= start:
+            bump("in_play", row)
+            return False
+        return True
+
+    rows = [r for r in rows if pre_game(r)]
+    scores = [r for r in scores if pre_game(r)]
+
+    groups: dict[tuple, set] = {}
+    for r in rows + scores:
+        if r.get("sport") == "nfl" and r.get("market") == "total" and r.get("model_p") is not None:
+            groups.setdefault((r.get("game_id"), r.get("logged_at"), r.get("model_p")), set()).add(r.get("line"))
+    same = {k for k, lines in groups.items() if len(lines) > 1}
+
+    def keep(row):
+        key = (row.get("game_id"), row.get("logged_at"), row.get("model_p"))
+        if row.get("sport") == "nfl" and row.get("market") == "total" and key in same:
+            bump("same_p", row)
+            return False
+        return True
+
+    return [r for r in rows if keep(r)], [r for r in scores if keep(r)], counts
+
+
 def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
-          score_rows: list[dict] | None = None, sport_gate_cfg: dict | None = None) -> dict:
+          score_rows: list[dict] | None = None, sport_gate_cfg: dict | None = None,
+          starts: dict | None = None, closing_in_play: int = 0) -> dict:
+    # Precedence: in-play, unresolved start, same-p, then legacy total; each row is counted once.
+    rows, kept_scores, excluded = apply_exclusions(rows, list(score_rows or []), starts)
     n_legacy = sum(1 for r in rows if _is_legacy_total(r))
     # How many of the set-aside rows each sport had, so a sport can say so.
     legacy_by_sport: dict[str, int] = {}
@@ -607,9 +662,16 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
 
     per_sport = _per_sport(rows, table, gate_cfg, legacy_by_sport)
 
-    scores = list(score_rows or [])
+    scores = kept_scores
     points = score_points(scores, rows)
     sport_cfg = sport_gate_cfg or segments_mod.sport_gate({})
+
+    for sport, entry in per_sport.items():
+        if isinstance(entry, dict):
+            for reason, field in (("in_play", "excluded_in_play_rows"),
+                                  ("unresolved_start", "excluded_unresolved_start_rows"),
+                                  ("same_p", "excluded_same_p_rows")):
+                entry[field] = excluded[reason].get(sport, 0)
 
     return {
         "scoring": build_scoring(points),
@@ -625,6 +687,11 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
             "segment_groups": len(table),
             "segments_qualifying": sum(1 for v in table.values() if v["qualifies_for_edge_claim"]),
             "excluded_legacy_total_rows": n_legacy,
+            "excluded_in_play_rows": sum(excluded["in_play"].values()),
+            "excluded_unresolved_start_rows": sum(excluded["unresolved_start"].values()),
+            "excluded_same_p_rows": sum(excluded["same_p"].values()),
+            "excluded_in_play_closing_observations": closing_in_play,
+            "excluded_by_sport": excluded,
             **_total_clv(table),
         },
         "per_segment": per_segment,
@@ -688,6 +755,18 @@ def render(report: dict) -> str:
     return "\n".join(lines)
 
 
+def site_starts(root) -> dict | None:
+    """{(sport, game_id): true start} from each site's public snapshot, or None without a root."""
+    if not root:
+        return None
+    out: dict = {}
+    for sport in ("nfl", "nba", "cfb", "pl"):
+        snap = sources.read_snapshot(Path(root) / sources.SITE_FOR_SPORT[sport] / "data" / "public_snapshot.json")
+        for game_id, start in sources.game_starts(snap, sport).items():
+            out[(sport, game_id)] = start
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ledger", default="data/paper/ledger.jsonl")
@@ -710,15 +789,24 @@ def main(argv: list[str] | None = None) -> int:
         from .sources import discover_sites_root, SITE_FOR_SPORT
         root = args.sites_root or discover_sites_root()
         if root:
-            for sport in sorted(set(SITE_FOR_SPORT.values())):
+            for sport in sorted(SITE_FOR_SPORT):  # sports, not site names: lines_files keys on sport
                 files.extend(sources.lines_files(root, sport))
     obs = closing_mod.read_observations(Path(args.closing))
-    closing = stats.closing_prices(
-        stats.annotate_observed(sources.read_line_files(files))
-        + closing_mod.observation_rows(obs, rows))
+    starts = site_starts(args.sites_root or sources.discover_sites_root())
+    # Closing lines use the TRUE start, for the site snapshots too: their own
+    # `occurrence` is Kalshi's expected end, which let in-game prices through.
+    by_ticker = closing_mod.ticker_starts(rows, starts)
+    observed = stats.annotate_observed(sources.read_line_files(files))
+    for o in observed:
+        o["_kickoff"] = by_ticker.get(o.get("ticker"))
+    from_closing = closing_mod.observation_rows(obs, rows, starts)
+    closing_in_play = sum(1 for o in from_closing if o["_kickoff"] is not None
+                          and o["_seen_at"] is not None and o["_seen_at"] >= o["_kickoff"])
+    closing = stats.closing_prices(observed + from_closing)
 
     report = build(rows, closing=closing, gate_cfg=segments_mod.gate(config),
-                   score_rows=resolved_scores(ledger), sport_gate_cfg=segments_mod.sport_gate(config))
+                   score_rows=resolved_scores(ledger), sport_gate_cfg=segments_mod.sport_gate(config),
+                   starts=starts, closing_in_play=closing_in_play)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(_public(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")

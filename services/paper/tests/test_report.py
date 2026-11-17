@@ -26,6 +26,7 @@ def row(**over) -> dict:
         "segment": "nfl:moneyline:0.60-0.70", "stake": 5.0,
         "status": "settled", "outcome": "yes", "pnl_per_contract": 0.48,
         "price_observed_at": "2026-10-17T20:00:00+00:00", "kickoff": "2026-10-18T17:00:00+00:00",
+        "expected_end": "2026-10-18T20:00:00+00:00",  # post-fix row: kickoff is the true start
     }
     base.update(over)
     return base
