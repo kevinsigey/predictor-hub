@@ -1,0 +1,25 @@
+fold 2021-2022 380
+fold 2022-2023 380
+fold 2023-2024 380
+fold 2024-2025 380
+fold 2025-2026 380
+
+== OVERALL N=1900 matches, validation 2021-2022..2025-2026
+Pinnacle close: N=1730  walk-forward w by season {2021-2022: 0.00, 2022-2023: 0.00, 2023-2024: 0.00, 2024-2025: 0.00, 2025-2026: 0.00}
+  log loss: model 0.9708 market 0.9468 blend 0.9468; market-model -0.0240 [-0.0326, -0.0150]; market-blend +0.0000 [-0.0000, +0.0000]
+  RPS: model 0.1990 market 0.1918 blend 0.1918; market-model -0.0072 [-0.0099, -0.0045]; market-blend -0.0000 [-0.0000, +0.0000]
+Bet365 open: N=1900  walk-forward w by season {2021-2022: 0.00, 2022-2023: 0.00, 2023-2024: 0.00, 2024-2025: 0.00, 2025-2026: 0.00}
+  log loss: model 0.9785 market 0.9604 blend 0.9604; market-model -0.0181 [-0.0253, -0.0107]; market-blend +0.0000 [-0.0000, +0.0000]
+  RPS: model 0.2005 market 0.1950 blend 0.1950; market-model -0.0055 [-0.0079, -0.0032]; market-blend -0.0000 [-0.0000, +0.0000]
+
+== SEGMENTS vs Pinnacle close (7 cells, Bonferroni alpha 0.0071); gain = market log loss - candidate, positive = candidate better
+      segment       cell    n  ll_model  ll_market  gain_model   gm_lo   gm_hi  gain_segblend  gs_lo  gs_hi  gs_adj_lo  gs_adj_hi  last_seg_w  flag
+     P1 early <=6 played  301    0.9635     0.9416     -0.0220 -0.0454  0.0019        -0.0002 -0.001 0.0006    -0.0013     0.0009        0.06 False
+     P1 early  >6 played 1429    0.9724     0.9479     -0.0244 -0.0338 -0.0150        -0.0000 -0.000 0.0000    -0.0000     0.0000        0.00 False
+  P2 promoted        yes  492    0.8974     0.8658     -0.0316 -0.0470 -0.0155        -0.0000 -0.000 0.0000    -0.0000     0.0000        0.00 False
+  P2 promoted         no 1238    1.0000     0.9790     -0.0210 -0.0310 -0.0103         0.0000 -0.000 0.0000    -0.0000     0.0000        0.00 False
+P3 |dP(home)|      <0.05  814    0.9449     0.9422     -0.0027 -0.0090  0.0037        -0.0001 -0.001 0.0008    -0.0013     0.0011        0.21 False
+P3 |dP(home)|  0.05-0.10  598    0.9891     0.9704     -0.0187 -0.0335 -0.0046         0.0000 -0.000 0.0000    -0.0000     0.0000        0.00 False
+P3 |dP(home)|     >=0.10  318    1.0028     0.9143     -0.0886 -0.1208 -0.0554        -0.0000 -0.000 0.0000    -0.0000     0.0000        0.00 False
+
+flags: none

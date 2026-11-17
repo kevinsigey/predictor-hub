@@ -1,0 +1,26 @@
+Q1 points (game sports): 2036 rows, 439 games; by sport {'cfb': 192, 'nba': 202, 'nfl': 45}
+excluded counts: {'in_play': 647, 'unresolved_start': 31, 'same_p': 94}
+chronological w: fitted on 21 kickoff days covering 332 games; values [0.0]
+
+== OVERALL (positive = candidate better than the Kalshi price)
+pooled: model -0.0372 [-0.0542, -0.0208]   chronological blend -0.0000 [-0.0000, -0.0000]   N games 439
+
+== SEGMENTS (15 cells, Bonferroni alpha 0.0033); gain = market log loss - candidate, per game
+         segment          cell  games  rows  gain_model      lo      hi  adj_lo  adj_hi  gain_blend  blo  bhi  side_n  side_hit    side_wilson  flag
+ L1 sport:market cfb:moneyline    130   130     -0.0244 -0.0700  0.0208 -0.0903  0.0483        -0.0 -0.0 -0.0     100    0.5200 (0.423, 0.615) False
+ L1 sport:market    cfb:spread    149   603     -0.0387 -0.0808  0.0058 -0.1009  0.0223        -0.0 -0.0 -0.0     575    0.4435 (0.403, 0.484) False
+ L1 sport:market     cfb:total    145   545     -0.0180 -0.0574  0.0214 -0.0777  0.0376        -0.0 -0.0  0.0     523    0.5048 (0.462, 0.547) False
+ L1 sport:market nba:moneyline    202   202     -0.0485 -0.0759 -0.0220 -0.0855 -0.0090        -0.0 -0.0  0.0     117    0.3248 (0.247, 0.414) False
+ L1 sport:market    nba:spread    202   206     -0.0184 -0.0482  0.0104 -0.0572  0.0238         0.0 -0.0  0.0     122    0.5328 (0.445, 0.619) False
+ L1 sport:market     nba:total    201   201     -0.0016 -0.0398  0.0403 -0.0636  0.0548        -0.0 -0.0  0.0     139    0.5468 (0.464, 0.627) False
+ L1 sport:market nfl:moneyline     37    37     -0.0525 -0.1003 -0.0060 -0.1287  0.0141        -0.0 -0.0  0.0      24    0.4167 (0.245, 0.612) False
+ L1 sport:market     nfl:total     32   112     -0.0984 -0.2092  0.0017 -0.2598  0.0510        -0.0 -0.0 -0.0     106    0.4057 (0.317, 0.501) False
+L2 |model-price|         <0.05    198   330     -0.0029 -0.0099  0.0041 -0.0131  0.0075         0.0 -0.0  0.0       0       NaN           None False
+L2 |model-price|     0.05-0.10    295   757     -0.0221 -0.0384 -0.0061 -0.0448  0.0005        -0.0 -0.0  0.0     757    0.5310 (0.495, 0.566) False
+L2 |model-price|        >=0.10    294   949     -0.0576 -0.0937 -0.0214 -0.1087 -0.0034        -0.0 -0.0 -0.0     949    0.4226 (0.391, 0.454) False
+    L3 lead time         >=24h    290  1246     -0.0390 -0.0629 -0.0157 -0.0735 -0.0052        -0.0 -0.0 -0.0    1130    0.4575 (0.429, 0.487) False
+    L3 lead time          <24h    291   790     -0.0392 -0.0610 -0.0188 -0.0723 -0.0107        -0.0 -0.0  0.0     576    0.4965 (0.456, 0.537) False
+          L4 CFB power v power     97   626     -0.0136 -0.0523  0.0246 -0.0794  0.0423        -0.0 -0.0 -0.0     585    0.4598    (0.42, 0.5) False
+          L4 CFB         other     95   652     -0.0658 -0.1033 -0.0292 -0.1201 -0.0131        -0.0 -0.0 -0.0     613    0.4927 (0.453, 0.532) False
+
+flags: none

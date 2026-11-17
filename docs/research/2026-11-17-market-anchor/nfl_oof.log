@@ -1,0 +1,81 @@
+Loading NFL data for seasons [2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]...
+2000 done.
+Downcasting floats.
+2001 done.
+Downcasting floats.
+2002 done.
+Downcasting floats.
+2003 done.
+Downcasting floats.
+2004 done.
+Downcasting floats.
+2005 done.
+Downcasting floats.
+2006 done.
+Downcasting floats.
+2007 done.
+Downcasting floats.
+2008 done.
+Downcasting floats.
+2009 done.
+Downcasting floats.
+2010 done.
+Downcasting floats.
+2011 done.
+Downcasting floats.
+2012 done.
+Downcasting floats.
+2013 done.
+Downcasting floats.
+2014 done.
+Downcasting floats.
+2015 done.
+Downcasting floats.
+2016 done.
+Downcasting floats.
+2017 done.
+Downcasting floats.
+2018 done.
+Downcasting floats.
+2019 done.
+Downcasting floats.
+2020 done.
+Downcasting floats.
+2021 done.
+Downcasting floats.
+2022 done.
+Downcasting floats.
+2023 done.
+Downcasting floats.
+2024 done.
+Downcasting floats.
+2025 done.
+Downcasting floats.
+2026 done.
+Downcasting floats.
+fold 2002 267
+fold 2003 267
+fold 2004 267
+fold 2005 267
+fold 2006 267
+fold 2007 267
+fold 2008 267
+fold 2009 267
+fold 2010 267
+fold 2011 267
+fold 2012 267
+fold 2013 267
+fold 2014 267
+fold 2015 267
+fold 2016 267
+fold 2017 267
+fold 2018 267
+fold 2019 267
+fold 2020 269
+fold 2021 285
+fold 2022 284
+fold 2023 285
+fold 2024 285
+fold 2025 285
+fold 2026 150
+rows 6649 seasons 2002 2026 with spread 6649
