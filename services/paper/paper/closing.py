@@ -68,13 +68,20 @@ def fetch(ticker: str, *, get, sleep=time.sleep) -> dict | None:
     return None
 
 
-def due_tickers(rows: list[dict], now: datetime) -> dict[str, datetime]:
-    """Open rows' tickers that kick off within WINDOW and have not started."""
+def due_tickers(rows: list[dict], now: datetime, starts: dict | None = None) -> dict[str, datetime]:
+    """Open rows' tickers that kick off within WINDOW and have not started.
+
+    The window runs off the TRUE start. A row without `expected_end` was
+    written when `kickoff` still held Kalshi's expected end (about three
+    hours late), so it is only used when `starts` re-derives its start.
+    """
     out: dict[str, datetime] = {}
     for row in rows:
         if row.get("status") != STATUS_OPEN or not isinstance(row.get("ticker"), str):
             continue
-        start = sources.parse_ts(row.get("kickoff"))
+        if starts is None and "expected_end" not in row and row.get("sport") != "f1":
+            continue
+        start = sources.row_start(row, starts)
         if start is not None and now < start <= now + WINDOW:
             out[row["ticker"]] = start
     return out
@@ -92,16 +99,22 @@ def read_observations(path: Path) -> list[dict]:
     return out
 
 
-def observation_rows(observations: list[dict], rows: list[dict]) -> list[dict]:
+def ticker_starts(rows: list[dict], starts: dict | None = None) -> dict[str, datetime]:
+    """Ticker -> true start, from the ledger rows (see `sources.row_start`)."""
+    out = {}
+    for row in rows:
+        start = sources.row_start(row, starts)
+        if start is not None and isinstance(row.get("ticker"), str):
+            out[row["ticker"]] = start
+    return out
+
+
+def observation_rows(observations: list[dict], rows: list[dict], starts: dict | None = None) -> list[dict]:
     """closing.jsonl observations shaped like `stats.annotate_observed` output.
 
     The kickoff comes from the ledger (the observation does not carry one).
     """
-    kickoff = {}
-    for row in rows:
-        start = sources.parse_ts(row.get("kickoff"))
-        if start is not None and isinstance(row.get("ticker"), str):
-            kickoff[row["ticker"]] = start
+    kickoff = ticker_starts(rows, starts)
     out = []
     for obs in observations:
         out.append({

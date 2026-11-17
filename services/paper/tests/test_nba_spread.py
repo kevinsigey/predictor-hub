@@ -72,6 +72,7 @@ def nba_games(pick: dict) -> dict[str, dict]:
             "generated_at": pick.get("created_at"),
             "model_fingerprint": pick.get("model_version"),
             "date": pick.get("game_date"),
+            "start": sources.parse_ts("2026-10-24T02:00:00+00:00"),  # the site's tip_off
             "home": pick.get("home_team"),
             "away": pick.get("away_team"),
             "total_mu": pick.get("predicted_total"),

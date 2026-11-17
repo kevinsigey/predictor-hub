@@ -334,6 +334,65 @@ def kickoff(row: dict) -> datetime | None:
     return None
 
 
+def site_start(value, *, naive_is_utc: bool = False) -> datetime | None:
+    """A site schedule time as an aware UTC datetime, or None.
+
+    NFL's `gameday` is a naive stamp that is UTC (a 1pm ET game in October is
+    `T17:00:00`); `parse_ts` refuses naive stamps, so NFL opts in explicitly.
+    """
+    if naive_is_utc and isinstance(value, str) and value.strip() and parse_ts(value) is None:
+        try:
+            return datetime.fromisoformat(value.strip()).replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+    return parse_ts(value)
+
+
+def game_starts(snapshot: dict | None, sport: str) -> dict[str, datetime]:
+    """The model site's own scheduled start for EVERY game it lists, played or not.
+
+    Kalshi's `occurrence` is the expected END (about three hours after the
+    start; Kalshi's market endpoint has `occurrence_datetime` ==
+    `expected_expiration_time` and no start field), so the true start comes
+    from the site's schedule: NFL/CFB `gameday`, PL `commence_time`, NBA
+    `schedule[].tip_off`. F1 is not here: its rows already carry the session start.
+    """
+    out: dict[str, datetime] = {}
+    if not isinstance(snapshot, dict):
+        return out
+    if sport in ("nfl", "cfb"):
+        for week in (snapshot.get("weeks") or {}).values():
+            for game in (week.get("games") or []) if isinstance(week, dict) else []:
+                start = site_start(game.get("gameday"), naive_is_utc=(sport == "nfl"))
+                if start is not None and game.get("game_id"):
+                    out[str(game["game_id"])] = start
+    elif sport == "pl":
+        for event_id, detail in (snapshot.get("fixture_detail_by_event_id") or {}).items():
+            start = site_start(detail.get("commence_time")) if isinstance(detail, dict) else None
+            if start is not None:
+                out[str(event_id)] = start
+    elif sport == "nba":
+        for game in snapshot.get("schedule") or []:
+            start = site_start(game.get("tip_off")) if isinstance(game, dict) else None
+            if start is not None and game.get("game_id"):
+                out[str(game["game_id"])] = start
+    return out
+
+
+def row_start(row: dict, starts: dict | None = None) -> datetime | None:
+    """The true start of a ledger row's game.
+
+    A row written after the fix carries `expected_end` (Kalshi's old value) and
+    its `kickoff` is the true start. F1 rows always stored the session start.
+    An older row's `kickoff` is the late Kalshi value, so it is re-derived from
+    `starts[(sport, game_id)]`; None when the game is not in the schedule.
+    With `starts=None` the row's own `kickoff` is used.
+    """
+    if starts is None or "expected_end" in row or row.get("sport") == "f1":
+        return parse_ts(row.get("kickoff"))
+    return starts.get((row.get("sport"), str(row.get("game_id") or "")))
+
+
 def buyable_price(row: dict, side: str) -> float | None:
     """The price we could actually have paid for `side`, in 0-1, or None.
 
@@ -447,8 +506,10 @@ def snapshot_games(snapshot: dict | None, sport: str) -> dict[str, dict]:
     if sport == "nba":
         root = discover_sites_root()
         picks = _picks_history(root) if root is not None else []
+        tip_offs = game_starts(snapshot, "nba")
         return {
-            str(pick.get("game_id")): _nba_pick_snapshot(pick)
+            str(pick.get("game_id")): dict(_nba_pick_snapshot(pick),
+                                           start=tip_offs.get(str(pick.get("game_id"))))
             for pick in _latest_pick_per_game(picks).values()
         }
 
@@ -481,6 +542,7 @@ def snapshot_games(snapshot: dict | None, sport: str) -> dict[str, dict]:
                     "generated_at": generated_at,
                     "model_fingerprint": snapshot.get("model_fingerprint"),
                     "date": str(game.get("gameday") or "")[:10],
+                    "start": site_start(game.get("gameday"), naive_is_utc=True),
                     "home": game.get("home_team"),
                     "away": game.get("away_team"),
                     # The model's predicted total and its sigma: a total rung's
@@ -526,6 +588,7 @@ def snapshot_games(snapshot: dict | None, sport: str) -> dict[str, dict]:
                 "generated_at": generated_at,
                 "model_fingerprint": snapshot.get("model_fingerprint"),
                 "date": commence[:10],
+                "start": site_start(commence),
                 "home": home_code,
                 "away": away_code,
                 "probs": {
@@ -1093,6 +1156,7 @@ def cfb_games(snapshot: dict | None) -> dict[str, dict]:
                 "generated_at": generated_at,
                 "model_fingerprint": probs.get("model_version"),
                 "date": str(game.get("gameday") or "")[:10],
+                "start": site_start(game.get("gameday")),
                 # The Kalshi codes, so the ticker joins on them.
                 "home": home_code,
                 "away": away_code,
