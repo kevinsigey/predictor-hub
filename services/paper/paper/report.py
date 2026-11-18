@@ -29,6 +29,7 @@ import sys
 from pathlib import Path
 
 from . import closing as closing_mod
+from . import rules as rules_mod
 from . import segments as segments_mod
 from . import sources, stats
 from .segments import MIN_SETTLED_GAMES_FLOOR
@@ -656,7 +657,9 @@ def apply_exclusions(rows: list[dict], scores: list[dict], starts: dict | None):
 
 def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
           score_rows: list[dict] | None = None, sport_gate_cfg: dict | None = None,
-          starts: dict | None = None, closing_in_play: int = 0) -> dict:
+          starts: dict | None = None, closing_in_play: int = 0,
+          rule_specs: list[dict] | None = None, rule_kills: list[dict] | None = None,
+          now=None) -> dict:
     # Precedence: in-play, unresolved start, same-p, then legacy total; each row is counted once.
     rows, kept_scores, excluded = apply_exclusions(rows, list(score_rows or []), starts)
     n_legacy = sum(1 for r in rows if _is_legacy_total(r))
@@ -726,7 +729,17 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
                                   ("same_p", "excluded_same_p_rows")):
                 entry[field] = excluded[reason].get(sport, 0)
 
+    # Preregistered shadow rules: read-only over the ledger, never the gate.
+    from datetime import datetime, timezone
+    shadow_rules, new_kills = rules_mod.evaluate(
+        rule_specs or [], rule_kills or [], scores,
+        [r for r in rows if r.get("kind") != KIND_SHADOW and r.get("status") == STATUS_SETTLED],
+        now=now or datetime.now(timezone.utc), promotion_test=promotion_test)
+
     return {
+        "shadow_rules": shadow_rules,
+        # Written to rules/kills.jsonl by main(), then dropped from the file.
+        "_new_rule_kills": new_kills,
         "scoring": build_scoring(points),
         "verdicts": build_verdicts(rows, points, scores, sport_cfg),
         "schema_version": 1,
@@ -785,6 +798,12 @@ def render(report: dict) -> str:
         )
     if not report["segments"]:
         lines.append("(no segments: the ledger is empty)")
+    for rid, card in sorted((report.get("shadow_rules") or {}).items()):
+        promo = card["promotion"]
+        lines.append(f"shadow rule {rid}: {card['status']}, {card['n_trades']} trades "
+                     f"({card['n_settled']} settled, {card['n_games']} games) since {card['prereg_at']}; "
+                     f"net {promo['net_cents_per_contract']} c/contract {promo['net_ci95']}, "
+                     f"paired {promo['paired_cents_per_contract']} {promo['paired_ci95']}")
     totals = report["totals"]
     lines += [
         "",
@@ -830,10 +849,13 @@ def main(argv: list[str] | None = None) -> int:
                         help="Kalshi line .jsonl.gz files to read closing prices from")
     parser.add_argument("--closing", default=closing_mod.DEFAULT_PATH,
                         help="near-kickoff observations from scripts/paper_close.py")
+    parser.add_argument("--rules", default=str(rules_mod.RULES_DIR),
+                        help="preregistered shadow rule specs and their kills.jsonl")
     parser.add_argument("--out", default=str(REPORT_PATH))
     args = parser.parse_args(argv)
 
     config = segments_mod.load(args.segments)
+    specs, kills = rules_mod.load(args.rules)
     ledger = Ledger(args.ledger)
     rows = resolved(ledger)
 
@@ -859,7 +881,9 @@ def main(argv: list[str] | None = None) -> int:
 
     report = build(rows, closing=closing, gate_cfg=segments_mod.gate(config),
                    score_rows=resolved_scores(ledger), sport_gate_cfg=segments_mod.sport_gate(config),
-                   starts=starts, closing_in_play=closing_in_play)
+                   starts=starts, closing_in_play=closing_in_play,
+                   rule_specs=specs, rule_kills=kills)
+    rules_mod.append_kills(report.pop("_new_rule_kills"), args.rules)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(_public(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")
