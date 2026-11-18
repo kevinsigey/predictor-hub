@@ -32,6 +32,15 @@ describe("MatchCard", () => {
     expect(screen.getByText("Pick: Aston Villa win · 38%")).toBeInTheDocument();
     expect(screen.getByText("Called it ✓")).toBeInTheDocument();
   });
+  it("headlines the market line with the model beside it, and says so when there is no line", () => {
+    const { rerender } = render(<MatchCard {...base} pick={{ label: "Aston Villa win", prob: 0.38 }} market={{ label: "Tottenham win", prob: 0.41 }} />);
+    expect(screen.getByTestId("market-headline")).toHaveTextContent("Market: Tottenham win · 41%");
+    expect(screen.getByText("Model: Aston Villa win · 38%")).toBeInTheDocument();
+    rerender(<MatchCard {...base} pick={{ label: "Aston Villa win", prob: 0.38 }} market={null} />);
+    expect(screen.queryByTestId("market-headline")).toBeNull();
+    expect(screen.getByText("Pick: Aston Villa win · 38%")).toBeInTheDocument();
+    expect(screen.getByText("No market line")).toBeInTheDocument();
+  });
   it("says 'No pick yet' without a pick, and shows exactly one status", () => {
     render(<MatchCard {...base} status="nopick" />);
     expect(screen.getAllByText(/Next up|Live|Called it|Missed|No pick yet|Made after kickoff/)).toHaveLength(1);
