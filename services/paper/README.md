@@ -270,3 +270,21 @@ same row shape the NFL and NBA collectors write (`snapshot_ts`, `series`,
 `volume`, `open_interest`, `status`, `result`, `occurrence`, `close_time`), and
 the `title` is not optional: it is what the driver is read from.
 
+
+## Preregistered shadow rules
+
+`data/paper/rules/<id>.json` holds one rule each: `id`, `description`, the
+population and `parameters` (the exact threshold), the `metric`, `prereg_at`
+(UTC), the `promotion` test and the `kill` limits. `paper/rules.py` reads them;
+`paper/report.py` evaluates them into `report.json`'s `shadow_rules`.
+
+- Only rows **decided after `prereg_at`** count.
+- Status is `collecting`, `eligible` (the three-leg `report.promotion_test`:
+  n >= 150, game-clustered low95 of net c/contract > 0, paired low95 > 0 against
+  the live model's rows on the same games), or `killed`.
+- A rule that reaches its kill limit (60 days or 300 trades, whichever first;
+  a spec may not loosen either) without being eligible is killed. The kill is
+  appended to `data/paper/rules/kills.jsonl` and is terminal.
+- Shadows never change live behaviour: nothing in the logger, settlement or
+  the segment gate reads them, and "eligible" is the strongest word the report
+  uses. Promotion to live needs Kevin's approval.
