@@ -51,6 +51,21 @@ cd services/paper && PYTHONPATH=. python3 -m pytest -q
    midpoint is not a price anybody pays. A dead quote (0 or 1 cent) or a crossed
    book means there was no price to log.
 
+**Depth.** Each row records `ask_size`, the contracts resting at the bought
+side's best ask in the same snapshot (the collectors' `yes_ask_size` /
+`no_ask_size`, from Kalshi's public, unauthenticated market list), and
+`contracts`, the size wanted (stake / price; a shadow is sized as its own bet).
+`fill_short` is true when `ask_size < contracts`. The report keeps fill_short
+rows out of every figure and shows them in `fills` with the fill rate. Rows
+from snapshots without a size have `fill_short: null` (unknown, kept).
+
+**Slippage cap.** The paper fill is modelled one observation late: the first
+pre-start quote of the same ticker after the decision (site snapshots plus
+`closing.jsonl`). If the bought side's ask there is more than 3c worse than the
+frozen decision price, the row is `slippage_cap` and set aside with the
+fill_short rows. Every row, filled or not, is graded at the frozen decision
+price, never the later one. No later quote means no cap (`n_fill_unobserved`).
+
 Fees are a **verbatim copy** of `shared/kalshi_fees.py` from `algo-trade-hub-prod`
 (commit `12432be`), with its mutation-grade pin tests. Do not reimplement them: it
 rounds the total order fee up once, after applying the contract count, and a

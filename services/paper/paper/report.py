@@ -683,11 +683,91 @@ def replay_vs_forward(replay: list[dict], forward: list[dict]) -> dict:
     return out
 
 
+#: A paper fill is skipped when the bought side's ask has moved MORE than this
+#: against us between the frozen decision price and the fill observation.
+SLIPPAGE_CAP = 0.03
+
+
+def fill_observations(observed: list[dict]) -> dict[str, list[tuple]]:
+    """{ticker: [(seen_at, yes ask, no ask), ...]} of pre-start quotes, oldest first.
+
+    `observed` is `stats.annotate_observed` output with `_kickoff` set to the
+    true start, the same rows the closing line is built from.
+    """
+    out: dict[str, list[tuple]] = {}
+    for o in observed:
+        seen, start = o.get("_seen_at"), o.get("_kickoff")
+        if not isinstance(o.get("ticker"), str) or seen is None or start is None or seen >= start:
+            continue
+        out.setdefault(o["ticker"], []).append((seen, o.get("_price"), o.get("_no_price")))
+    for quotes in out.values():
+        quotes.sort(key=lambda q: q[0])
+    return out
+
+
+def fill_ask(row: dict, fill_obs: dict[str, list[tuple]] | None) -> float | None:
+    """The bought side's ask at the first quote of the ticker AFTER the decision.
+
+    The paper fill is modelled one observation late: the decision is the frozen
+    logged price, and the next pre-start snapshot is the earliest a real order
+    could be checked against the book again. None when there is no such quote.
+    """
+    decided = sources.parse_ts(row.get("price_observed_at"))
+    if decided is None:
+        return None
+    column = 2 if (row.get("side") or "yes") == "no" else 1
+    for quote in (fill_obs or {}).get(row.get("ticker"), []):
+        if quote[0] > decided and quote[column] is not None:
+            return quote[column]
+    return None
+
+
+def set_aside_fills(rows: list[dict], fill_obs: dict[str, list[tuple]] | None = None
+                    ) -> tuple[list[dict], dict]:
+    """Keep rows the book could fill; set the rest aside, with their own figures.
+
+    `fill_short` is True when fewer contracts rested at our ask than we wanted;
+    `slippage_cap` is a row whose ask at the fill observation was more than
+    SLIPPAGE_CAP worse than the frozen decision price. Neither is P&L evidence
+    (the price was not there for us), so no figure uses them; the `fills` block
+    reports them separately, graded at the frozen decision price like every
+    row. A row with no recorded size, or no later quote, is unknown and kept.
+    """
+    def slipped(r):
+        ask = fill_ask(r, fill_obs)
+        return ask is not None and round(ask - float(r["market_price"]), 4) > SLIPPAGE_CAP
+
+    reasons = {"fill_short": lambda r: r.get("fill_short") is True, "slippage_cap": slipped}
+    kept, aside = [], {name: [] for name in reasons}
+    for row in rows:
+        why = next((name for name, test in reasons.items() if test(row)), None)
+        (aside[why] if why else kept).append(row)
+    known = [r for r in rows if isinstance(r.get("fill_short"), bool)]
+    short = sum(1 for r in known if r["fill_short"])
+
+    def block(part):
+        settled = [float(r.get("pnl_per_contract") or 0.0) for r in part
+                   if r.get("status") == STATUS_SETTLED]
+        return {"n": len(part), "n_settled": len(settled), "pnl": round(sum(settled), 4),
+                "pnl_per_contract": round(stats.fmean(settled), 4) if settled else None}
+
+    return kept, {
+        "n_rows": len(rows),
+        "n_depth_known": len(known),
+        "n_fill_short": short,
+        "fill_rate": round((len(known) - short) / len(known), 4) if known else None,
+        "slippage_cap": SLIPPAGE_CAP,
+        "n_fill_unobserved": sum(1 for r in rows if fill_ask(r, fill_obs) is None),
+        "set_aside": {name: block(part) for name, part in aside.items()},
+    }
+
+
 def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
           score_rows: list[dict] | None = None, sport_gate_cfg: dict | None = None,
           starts: dict | None = None, closing_in_play: int = 0,
           rule_specs: list[dict] | None = None, rule_kills: list[dict] | None = None,
-          now=None, replay_rows: list[dict] | None = None) -> dict:
+          now=None, replay_rows: list[dict] | None = None,
+          fill_obs: dict[str, list[tuple]] | None = None) -> dict:
     # Precedence: in-play, unresolved start, same-p, then legacy total; each row is counted once.
     # Replayed rows never rank a segment or promote a rule; they are only ever
     # shown beside forward results (`replay`), after the haircut.
@@ -696,6 +776,7 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
     rows = [r for r in rows if not is_replay(r)]
     score_rows = [r for r in (score_rows or []) if not is_replay(r)]
     rows, kept_scores, excluded = apply_exclusions(rows, list(score_rows or []), starts)
+    rows, fills = set_aside_fills(rows, fill_obs)
     n_legacy = sum(1 for r in rows if _is_legacy_total(r))
     # How many of the set-aside rows each sport had, so a sport can say so.
     legacy_by_sport: dict[str, int] = {}
@@ -799,6 +880,7 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
         "per_segment": per_segment,
         "per_sport": per_sport,
         "segments": table,
+        "fills": fills,
     }
 
 
@@ -851,6 +933,12 @@ def render(report: dict) -> str:
         f"{totals['n_shadow']} shadow), {totals['n_settled']} settled, "
         f"{totals['segments_qualifying']}/{totals['segment_groups']} segment-groups qualify for an edge claim.",
     ]
+    fills = report.get("fills") or {}
+    if fills.get("n_rows"):
+        rate = fills.get("fill_rate")
+        lines.append(f"fill: {fills['n_depth_known']} of {fills['n_rows']} rows have a recorded ask size; "
+                     f"fill rate {'—' if rate is None else f'{rate:.1%}'}; set aside from P&L: " +
+                     ", ".join(f"{k} {v['n']} (pnl {v['pnl']:+.2f})" for k, v in fills["set_aside"].items()))
     if totals.get("excluded_legacy_total_rows"):
         lines.append(f"{totals['excluded_legacy_total_rows']} earlier total rows excluded (priced at the wrong line).")
     # Current-model vs all-time n per segment.
@@ -920,12 +1008,13 @@ def main(argv: list[str] | None = None) -> int:
     closing_in_play = sum(1 for o in from_closing if o["_kickoff"] is not None
                           and o["_seen_at"] is not None and o["_seen_at"] >= o["_kickoff"])
     closing = stats.closing_prices(observed + from_closing)
+    fill_obs = fill_observations(observed + from_closing)
 
     report = build(rows, closing=closing, gate_cfg=segments_mod.gate(config),
                    score_rows=resolved_scores(ledger), sport_gate_cfg=segments_mod.sport_gate(config),
                    starts=starts, closing_in_play=closing_in_play,
                    rule_specs=specs, rule_kills=kills,
-                   replay_rows=Ledger(args.backtest).candidates())
+                   replay_rows=Ledger(args.backtest).candidates(), fill_obs=fill_obs)
     rules_mod.append_kills(report.pop("_new_rule_kills"), args.rules)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

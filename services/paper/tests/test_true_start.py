@@ -133,7 +133,7 @@ def test_main_reads_the_site_line_files_and_closes_on_the_true_start(tmp_path):
     (site / "data" / "lines").mkdir(parents=True)
     (site / "data").joinpath("public_snapshot.json").write_text(json.dumps(nfl_snapshot()))
     lines = [kalshi_row(snapshot_ts=ts, yes_ask=ask, occurrence=END)
-             for ts, ask in (("2026-10-18T16:00:00+00:00", 0.44), ("2026-10-18T18:30:00+00:00", 0.97))]
+             for ts, ask in (("2026-10-18T16:00:00+00:00", 0.43), ("2026-10-18T18:30:00+00:00", 0.97))]
     with gzip.open(site / "data" / "lines" / "k.jsonl.gz", "wt") as fh:
         fh.write("".join(json.dumps(r) + "\n" for r in lines))
     ledger = tmp_path / "ledger.jsonl"
@@ -144,4 +144,5 @@ def test_main_reads_the_site_line_files_and_closes_on_the_true_start(tmp_path):
     assert report.main(["--ledger", str(ledger), "--segments", str(seg), "--sites-root", str(tmp_path / "sites"),
                         "--closing", str(tmp_path / "none.jsonl"), "--out", str(out)]) == 0
     nfl = json.loads(out.read_text())["per_sport"]["nfl"]
-    assert nfl["n_clv"] == 1 and nfl["mean_clv_cents"] == 4.0  # the 16:00 line, not the in-game 0.97
+    # 3c, inside the slippage cap (a 4c move would set the row aside as slippage_cap).
+    assert nfl["n_clv"] == 1 and nfl["mean_clv_cents"] == 3.0  # the 16:00 line, not the in-game 0.97
