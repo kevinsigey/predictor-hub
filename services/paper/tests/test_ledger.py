@@ -202,3 +202,15 @@ def test_a_shadow_row_is_never_staked():
     assert [r["kind"] for r in made] == ["shadow"]
     assert made[0]["stake"] == 0.0
 
+
+
+def test_a_rung_held_on_yes_is_never_also_bought_on_no(ledger_path):
+    """The id carries the side, so a later run that prefers NO on the same rung
+    would get a fresh id. The ledger must still hold only the first side."""
+    ledger = Ledger(ledger_path)
+    yes = build([kalshi_row(yes_ask=0.40)])[0]
+    assert yes and yes[0]["side"] == "yes"
+    flipped = [dict(r, side="no", id=r["id"] + "-no") for r in yes]
+    ledger.append_new(yes)
+    assert ledger.append_new(flipped) == []
+    assert [r["side"] for r in ledger.candidates()] == ["yes"]

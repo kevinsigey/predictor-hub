@@ -63,6 +63,11 @@ def score_id(*, sport: str, game_id: str, market: str, ticker: str | None = None
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
 
 
+def rung_key(row: dict) -> tuple:
+    """The rung a candidate bought, whichever side: what "one position per rung" is keyed on."""
+    return (row.get("sport"), row.get("game_id"), row.get("market"), row.get("selection"), row.get("line"))
+
+
 def candidate_id(*, sport: str, game_id: str, market: str, selection: str | None,
                  side: str, line: float | None) -> str:
     """A stable id for "this bet", independent of when it was seen.
@@ -202,6 +207,9 @@ class Ledger:
         another price. First write wins, always.
         """
         seen = self.candidate_ids() | {r["id"] for r in self.scores() if r.get("id")}
+        # One side per rung: a rung already held on YES must not also be bought
+        # on NO by a later run (the id carries the side, so it cannot catch it).
+        held = {rung_key(r) for r in self.candidates()}
         fresh = []
         for record in records:
             if record.get("record") not in (KIND_CANDIDATE, RECORD_SCORE):
@@ -209,6 +217,10 @@ class Ledger:
                 continue
             if record["id"] in seen:
                 continue
+            if record.get("record") == KIND_CANDIDATE:
+                if rung_key(record) in held:
+                    continue
+                held.add(rung_key(record))
             seen.add(record["id"])
             self.append(record)
             fresh.append(record)
