@@ -521,6 +521,9 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
             "spread_points": round(spread * 100.0, 4),
             "volume": _num(volume),
             "open_interest": _num(open_interest),
+            # Contracts resting at the bought side's best ask at decision
+            # time; None when the snapshot carried no size.
+            "ask_size": _num(row.get(f"{side}_ask_size")),
             "model_fingerprint": game.get("model_fingerprint"),
             "stake": 0.0,
             "logged_at": _iso(seen_at),
@@ -537,16 +540,24 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
     # loses its place to a better-evidenced observation never consumed budget.
     committed = dict(committed_by_game or {})
     for made in sorted(best.values(), key=lambda r: r["logged_at"]):
-        if made["kind"] != KIND_CANDIDATE:
-            continue
         # Kelly takes the probability of the side actually bought: a NO
         # row's model_p is still the YES probability (that is what the
         # calibration record pairs against the contract result), so the
         # staking probability is its complement.
         stake_p = made["model_p"] if made["side"] != "no" else 1.0 - made["model_p"]
-        made["stake"] = stake_for(stake_p, made["market_price"],
-                                  game_id=made["game_id"], committed_by_game=committed)
-        committed[made["game_id"]] = committed.get(made["game_id"], 0.0) + made["stake"]
+        if made["kind"] == KIND_CANDIDATE:
+            made["stake"] = stake_for(stake_p, made["market_price"],
+                                      game_id=made["game_id"], committed_by_game=committed)
+            committed[made["game_id"]] = committed.get(made["game_id"], 0.0) + made["stake"]
+            wanted = made["stake"]
+        else:
+            # A shadow stakes nothing, but its fill is judged at the size it
+            # would have been bet at on its own.
+            wanted = stake_for(stake_p, made["market_price"], game_id=made["game_id"])
+        # Units are dollars on $1 contracts, so the size is stake / price.
+        made["contracts"] = round(wanted / made["market_price"], 4)
+        size = made["ask_size"]
+        made["fill_short"] = None if size is None else size < made["contracts"]
     return list(best.values()), skipped
 
 

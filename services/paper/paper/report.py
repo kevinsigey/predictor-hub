@@ -609,11 +609,43 @@ def apply_exclusions(rows: list[dict], scores: list[dict], starts: dict | None):
     return [r for r in rows if keep(r)], [r for r in scores if keep(r)], counts
 
 
+def set_aside_fills(rows: list[dict]) -> tuple[list[dict], dict]:
+    """Keep rows the book could fill; set the rest aside, with their own figures.
+
+    `fill_short` is True when fewer contracts rested at our ask than we wanted.
+    Those rows are not P&L evidence (the price was not there for our size), so
+    no figure uses them; the `fills` block reports them separately. A row with
+    no recorded size (`fill_short` None) is unknown and kept.
+    """
+    reasons = {"fill_short": lambda r: r.get("fill_short") is True}
+    kept, aside = [], {name: [] for name in reasons}
+    for row in rows:
+        why = next((name for name, test in reasons.items() if test(row)), None)
+        (aside[why] if why else kept).append(row)
+    known = [r for r in rows if isinstance(r.get("fill_short"), bool)]
+    short = sum(1 for r in known if r["fill_short"])
+
+    def block(part):
+        settled = [float(r.get("pnl_per_contract") or 0.0) for r in part
+                   if r.get("status") == STATUS_SETTLED]
+        return {"n": len(part), "n_settled": len(settled), "pnl": round(sum(settled), 4),
+                "pnl_per_contract": round(stats.fmean(settled), 4) if settled else None}
+
+    return kept, {
+        "n_rows": len(rows),
+        "n_depth_known": len(known),
+        "n_fill_short": short,
+        "fill_rate": round((len(known) - short) / len(known), 4) if known else None,
+        "set_aside": {name: block(part) for name, part in aside.items()},
+    }
+
+
 def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
           score_rows: list[dict] | None = None, sport_gate_cfg: dict | None = None,
           starts: dict | None = None, closing_in_play: int = 0) -> dict:
     # Precedence: in-play, unresolved start, same-p, then legacy total; each row is counted once.
     rows, kept_scores, excluded = apply_exclusions(rows, list(score_rows or []), starts)
+    rows, fills = set_aside_fills(rows)
     n_legacy = sum(1 for r in rows if _is_legacy_total(r))
     # How many of the set-aside rows each sport had, so a sport can say so.
     legacy_by_sport: dict[str, int] = {}
@@ -705,6 +737,7 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
         "per_segment": per_segment,
         "per_sport": per_sport,
         "segments": table,
+        "fills": fills,
     }
 
 
@@ -747,6 +780,12 @@ def render(report: dict) -> str:
         f"{totals['n_shadow']} shadow), {totals['n_settled']} settled, "
         f"{totals['segments_qualifying']}/{totals['segment_groups']} segment-groups qualify for an edge claim.",
     ]
+    fills = report.get("fills") or {}
+    if fills.get("n_rows"):
+        rate = fills.get("fill_rate")
+        lines.append(f"fill: {fills['n_depth_known']} of {fills['n_rows']} rows have a recorded ask size; "
+                     f"fill rate {'—' if rate is None else f'{rate:.1%}'}; set aside from P&L: " +
+                     ", ".join(f"{k} {v['n']} (pnl {v['pnl']:+.2f})" for k, v in fills["set_aside"].items()))
     if totals.get("excluded_legacy_total_rows"):
         lines.append(f"{totals['excluded_legacy_total_rows']} earlier total rows excluded (priced at the wrong line).")
     # Current-model vs all-time n per segment.
