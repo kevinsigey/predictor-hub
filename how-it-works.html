@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>How it works — Predictor</title>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="How it works — Predictor" />
+<meta name="description" content="How Predictor works: the data each sport reads, the models, the server, the market price, the track record and the paper ledger." />
+<meta property="og:description" content="How Predictor works: the data each sport reads, the models, the server, the market price, the track record and the paper ledger." />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* Family tokens, inlined because this page has no build step. They must
+     match packages/predictor-ui/src/tokens.css. */
+  :root {
+    --font-pr-display: "Barlow Condensed", "Arial Narrow", ui-sans-serif, sans-serif;
+    --font-pr-body: "Barlow", ui-sans-serif, system-ui, sans-serif;
+    --color-pr-stage: #0b0d10;
+    --color-pr-panel: #151920;
+    --color-pr-panel-2: #1d232c;
+    --color-pr-rule: #2b333f;
+    --color-pr-text: #f3f5f8;
+    --color-pr-text-dim: #b4bdca;
+    --color-pr-text-faint: #909aa8;
+    --color-pr-fill-mute: #5e6775;
+    --color-pr-win: #3ddc84;
+    --color-pr-win-ink: #0b0d10;
+    --color-pr-loss: #ff6b6b;
+    --color-pr-loss-ink: #0b0d10;
+    --color-pr-lean: #ffc53d;
+    --color-pr-accent: #f3f5f8;
+    --color-pr-accent-ink: #0b0d10;
+    --radius-pr: 6px;
+    --color-pr-rank-good-bg: #1a5c2e;
+    --color-pr-rank-good-ink: #f3f5f8;
+    --color-pr-rank-mid-bg: #7d5a00;
+    --color-pr-rank-mid-ink: #f3f5f8;
+    --color-pr-rank-bad-bg: #7d1a1a;
+    --color-pr-rank-bad-ink: #f3f5f8;
+  }
+  [data-sport="pl"] { --color-pr-accent: #ff2d78; }
+  [data-sport="f1"] { --color-pr-accent: #ff4436; }
+  [data-sport="nfl"] { --color-pr-accent: #4c8dff; }
+  [data-sport="cfb"] { --color-pr-accent: #f5b301; }
+  [data-sport="nba"] { --color-pr-accent: #ff7a1a; }
+  [data-sport="hub"] { --color-pr-accent: #f3f5f8; }
+
+  * { box-sizing: border-box; }
+  ::selection { background: var(--color-pr-accent); color: var(--color-pr-accent-ink); }
+  ::-moz-selection { background: var(--color-pr-accent); color: var(--color-pr-accent-ink); }
+  html { accent-color: var(--color-pr-accent); scrollbar-color: var(--color-pr-rule) var(--color-pr-stage); }
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-track { background: var(--color-pr-stage); }
+  ::-webkit-scrollbar-thumb { background: var(--color-pr-rule); border: 3px solid var(--color-pr-stage); border-radius: 6px; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color-scheme: dark;
+    background: var(--color-pr-stage);
+    color: var(--color-pr-text);
+    caret-color: var(--color-pr-accent);
+    font-family: var(--font-pr-body);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible { outline: 2px solid var(--color-pr-accent); outline-offset: 2px; }
+  a { color: inherit; text-underline-offset: 3px; text-decoration-color: var(--color-pr-text-faint); }
+  a:hover { text-decoration-color: var(--color-pr-accent); }
+
+  .wrap { max-width: 80rem; margin: 0 auto; padding: 0 1rem; }
+  @media (min-width: 40rem) { .wrap { padding: 0 1.5rem; } }
+
+  /* ---- The shared top bar (same markup as index.html / paper.html) ---- */
+  header { border-bottom: 1px solid var(--color-pr-rule); }
+  .frame-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1.5rem; padding-top: 0.75rem; }
+  .wordmark { font-family: var(--font-pr-display); font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2em; color: var(--color-pr-text-dim); text-decoration: none; }
+  .wordmark:hover { color: var(--color-pr-text); }
+  .wordmark[aria-current="page"] { background: var(--color-pr-accent); color: var(--color-pr-accent-ink); border-radius: var(--radius-pr); padding: 0.125rem 0.5rem; }
+  nav { position: relative; min-width: 0; max-width: 100%; }
+  .nav-scroller { display: flex; gap: 0.25rem; overflow-x: auto; }
+  .nav-scroller a { white-space: nowrap; border-radius: var(--radius-pr); padding: 0.25rem 0.625rem; font-family: var(--font-pr-display); font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-pr-text-dim); text-decoration: none; }
+  .nav-scroller a:hover { color: var(--color-pr-text); }
+  nav a[aria-current="page"] { background: var(--color-pr-accent); color: var(--color-pr-accent-ink); }
+  .nav-fade { position: absolute; top: 0; bottom: 0; right: 0; width: 6px; pointer-events: none; opacity: 0; transition: opacity 0.15s; background: linear-gradient(to left, var(--color-pr-stage), transparent); }
+  .nav-fade.show { opacity: 1; }
+  .hero-strip { padding: 1rem 0 1.25rem; }
+  h1 { margin: 0; padding: 1.25rem 0 0.25rem; font-family: var(--font-pr-display); font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 700; line-height: 1; text-transform: uppercase; letter-spacing: 0.02em; }
+  .lede { margin: 0.5rem 0 0; max-width: 40rem; font-size: 1.0625rem; line-height: 1.5; color: var(--color-pr-text-dim); }
+
+  main { padding-top: 1.25rem; padding-bottom: 3rem; }
+  section { margin-top: 3rem; scroll-margin-top: 4.5rem; }
+  section:first-of-type { margin-top: 0; }
+  h2 { margin: 0 0 1rem; font-family: var(--font-pr-display); font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 700; line-height: 1.05; text-transform: uppercase; letter-spacing: 0.02em; text-wrap: balance; }
+  h2 em { font-style: normal; color: var(--color-pr-accent); }
+  .sub { margin: -0.5rem 0 1rem; max-width: 42rem; font-size: 0.9375rem; line-height: 1.5; color: var(--color-pr-text-dim); }
+  .tech { font-family: var(--font-pr-display); font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.03em; color: var(--color-pr-text-faint); }
+
+  /* ---- Sport picker: drives every diagram on the page ---- */
+  .picker { position: sticky; top: 0; z-index: 5; display: flex; gap: 0.375rem; overflow-x: auto; padding: 0.625rem 0; margin-bottom: 1rem; background: var(--color-pr-stage); border-bottom: 1px solid var(--color-pr-rule); }
+  .pick {
+    flex: none; font: inherit; font-family: var(--font-pr-display); font-size: 0.9375rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--color-pr-text-dim); background: var(--color-pr-panel); border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr);
+    padding: 0.375rem 0.75rem; min-height: 40px; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem;
+    transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s, border-color 0.2s;
+  }
+  .pick::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--color-pr-accent); }
+  .pick:hover { color: var(--color-pr-text); border-color: var(--color-pr-text-faint); }
+  .pick[aria-pressed="true"] { background: var(--color-pr-accent); border-color: var(--color-pr-accent); color: var(--color-pr-accent-ink); }
+  .pick[aria-pressed="true"]::before { background: var(--color-pr-accent-ink); }
+
+  /* ---- Pipeline flow ---- */
+  .flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1.25rem; }
+  .flow li { position: relative; min-width: 0; }
+  .flow li + li::before {
+    content: ""; position: absolute; left: -1.125rem; top: 50%; width: 1rem; height: 2px; background: var(--color-pr-accent);
+  }
+  .flow li + li::after {
+    content: ""; position: absolute; left: -0.375rem; top: calc(50% - 4px); border: 5px solid transparent; border-left-color: var(--color-pr-accent); border-right: 0;
+  }
+  .node {
+    width: 100%; height: 100%; text-align: left; font: inherit; color: var(--color-pr-text); cursor: pointer;
+    background: var(--color-pr-panel); border: 1px solid var(--color-pr-rule); border-top: 3px solid var(--color-pr-accent); border-radius: var(--radius-pr);
+    padding: 0.75rem 0.75rem 0.875rem; display: grid; align-content: start; gap: 0.375rem;
+    transition: border-color 0.2s, background-color 0.2s, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .node:hover { border-color: var(--color-pr-text-faint); border-top-color: var(--color-pr-accent); }
+  .node[aria-expanded="true"] { background: var(--color-pr-panel-2); border-color: var(--color-pr-accent); transform: translateY(-3px); box-shadow: 0 8px 20px -10px rgba(0, 0, 0, 0.8); }
+  .node .stage { font-family: var(--font-pr-display); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-pr-text-faint); }
+  .node .title { font-family: var(--font-pr-display); font-size: 1.1875rem; font-weight: 700; line-height: 1.1; text-transform: uppercase; overflow-wrap: anywhere; }
+  .node .when { font-size: 0.8125rem; line-height: 1.35; color: var(--color-pr-text-dim); }
+  .drawer { margin-top: 1rem; border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); background: var(--color-pr-panel); padding: 1rem 1.125rem; animation: rise 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+  .drawer h3 { margin: 0 0 0.5rem; font-family: var(--font-pr-display); font-size: 1.25rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+  .drawer ul { margin: 0; padding-left: 1.125rem; display: grid; gap: 0.3rem; font-size: 0.9375rem; line-height: 1.5; color: var(--color-pr-text-dim); max-width: 70ch; }
+  .drawer li strong { color: var(--color-pr-text); font-weight: 600; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ---- Where it runs ---- */
+  .ship-strip { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 0; align-items: stretch; }
+  .ship-strip li { display: flex; align-items: center; font-size: 0.875rem; color: var(--color-pr-text-dim); }
+  .ship-strip li span { border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); background: var(--color-pr-panel); padding: 0.375rem 0.625rem; line-height: 1.3; }
+  .ship-strip li span b { display: block; font-family: var(--font-pr-display); font-size: 0.9375rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-pr-text); }
+  .ship-strip li + li::before { content: ""; width: 1rem; height: 2px; margin: 0 0.25rem; background: var(--color-pr-rule); }
+  .vps { border: 1px solid var(--color-pr-text-faint); border-radius: var(--radius-pr); padding: 0.875rem; background: repeating-linear-gradient(135deg, transparent 0 14px, rgba(255, 255, 255, 0.015) 14px 15px); }
+  .vps-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.25rem 1rem; align-items: baseline; margin-bottom: 0.75rem; }
+  .vps-head b { font-family: var(--font-pr-display); font-size: 1.125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .caddy { border: 1px dashed var(--color-pr-rule); border-radius: var(--radius-pr); padding: 0.5rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.875rem; color: var(--color-pr-text-dim); display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; align-items: baseline; }
+  .caddy b { font-family: var(--font-pr-display); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-pr-text); }
+  .boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.5rem), 1fr)); gap: 0.625rem; }
+  .box {
+    font: inherit; text-align: left; color: var(--color-pr-text); background: var(--color-pr-panel); cursor: pointer;
+    border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); padding: 0.625rem 0.75rem; display: grid; gap: 0.2rem; min-width: 0;
+    transition: opacity 0.25s, border-color 0.2s, background-color 0.2s;
+  }
+  .box:hover { border-color: var(--color-pr-text-faint); }
+  .box b { font-family: var(--font-pr-display); font-size: 1.0625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; display: flex; align-items: center; gap: 0.4rem; }
+  .box b::before { content: ""; width: 0.5rem; height: 0.5rem; border-radius: 2px; background: var(--color-pr-accent); flex: none; }
+  .box span { font-size: 0.8125rem; line-height: 1.35; color: var(--color-pr-text-dim); overflow-wrap: anywhere; }
+  .box .host { font-family: var(--font-pr-display); font-size: 0.8125rem; color: var(--color-pr-text-faint); }
+  .vps.focus .box { opacity: 0.4; }
+  .vps.focus .box.on { opacity: 1; border-color: var(--color-pr-accent); background: var(--color-pr-panel-2); }
+
+  /* ---- Charts: dot + interval rows ---- */
+  .ci-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+  .ci-row { display: grid; grid-template-columns: minmax(9rem, 15rem) minmax(0, 1fr) 9.5rem; gap: 0.25rem 1rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--color-pr-rule); transition: opacity 0.25s; }
+  .ci-row:last-child { border-bottom: 0; }
+  .ci-row .lbl { font-size: 0.9375rem; line-height: 1.3; }
+  .ci-row .lbl small { display: block; font-size: 0.8125rem; color: var(--color-pr-text-faint); }
+  .ci-row .val { font-family: var(--font-pr-display); font-size: 0.9375rem; font-weight: 600; text-align: right; white-space: nowrap; }
+  .ci-row .val small { display: block; font-weight: 500; font-size: 0.75rem; color: var(--color-pr-text-faint); }
+  .track { position: relative; height: 1.75rem; }
+  .track::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--color-pr-rule); }
+  .track .zero { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--color-pr-text-faint); }
+  .track .ci { position: absolute; top: calc(50% - 3px); height: 6px; border-radius: 3px; background: var(--c, var(--color-pr-fill-mute)); opacity: 0.6; }
+  .track .pt { position: absolute; top: calc(50% - 6px); width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--c, var(--color-pr-fill-mute)); border: 2px solid var(--color-pr-stage); }
+  .axis-cap { display: grid; grid-template-columns: minmax(9rem, 15rem) minmax(0, 1fr) 9.5rem; gap: 1rem; font-size: 0.75rem; color: var(--color-pr-text-faint); margin-bottom: 0.25rem; }
+  .axis-cap .ends { display: flex; justify-content: space-between; gap: 0.5rem; }
+  .ci-list.dimmable .ci-row.off { opacity: 0.35; }
+
+  /* ---- Market first ---- */
+  .duo { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 1rem; align-items: start; }
+  .face { border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); background: var(--color-pr-panel); padding: 1rem; display: grid; gap: 0.75rem; }
+  .face .row { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); gap: 0.75rem; align-items: center; }
+  .face .row b { font-family: var(--font-pr-display); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .face .row.market b { font-size: 1.5rem; }
+  .face .row.model b { font-size: 1rem; color: var(--color-pr-text-dim); }
+  .face .bar { height: 0.875rem; border-radius: 99px; background: var(--color-pr-panel-2); overflow: hidden; }
+  .face .bar i { display: block; height: 100%; background: var(--color-pr-text); border-radius: 99px; }
+  .face .row.model .bar { height: 0.5rem; }
+  .face .row.model .bar i { background: var(--color-pr-fill-mute); }
+  .face p { margin: 0; font-size: 0.875rem; line-height: 1.5; color: var(--color-pr-text-dim); }
+  .stat-line { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-top: 0.75rem; font-size: 0.875rem; color: var(--color-pr-text-dim); }
+  .stat-line b { font-family: var(--font-pr-display); font-size: 1.375rem; font-weight: 700; color: var(--color-pr-text); margin-right: 0.25rem; }
+
+  /* ---- Track record timeline ---- */
+  .timeline { position: relative; border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); background: var(--color-pr-panel); padding: 1.25rem 1rem 1rem; }
+  .tl-key { font-family: var(--font-pr-display); font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 0.375rem; align-items: center; }
+  .tl-key span { border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); padding: 0.125rem 0.5rem; background: var(--color-pr-panel-2); }
+  .tl-track { position: relative; display: grid; grid-template-columns: 1fr 1fr 0.2fr 1fr; align-items: start; padding-top: 1.25rem; }
+  .tl-track::before { content: ""; position: absolute; left: 0; right: 0; top: 1.25rem; height: 2px; background: var(--color-pr-rule); }
+  .tl-pt { position: relative; padding-top: 1.25rem; padding-right: 0.5rem; font-size: 0.875rem; line-height: 1.35; color: var(--color-pr-text-dim); }
+  .tl-pt::before { content: ""; position: absolute; top: -7px; left: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--color-pr-panel); border: 2px solid var(--color-pr-fill-mute); }
+  .tl-pt b { display: block; font-family: var(--font-pr-display); font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-pr-text-dim); }
+  .tl-pt.counted::before { background: var(--color-pr-win); border-color: var(--color-pr-win); }
+  .tl-pt.counted b { color: var(--color-pr-win); }
+  .tl-kick { position: relative; align-self: stretch; }
+  .tl-kick::before { content: ""; position: absolute; left: 50%; top: -1.25rem; bottom: 0; border-left: 2px solid var(--color-pr-text); }
+  .tl-kick span { position: absolute; left: 50%; top: -2.5rem; transform: translateX(-50%); font-family: var(--font-pr-display); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .tl-pt.late::before { border-style: dashed; }
+
+  /* ---- Paper loop ---- */
+  .loop { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; counter-reset: none; }
+  .loop li { position: relative; border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); background: var(--color-pr-panel); padding: 0.75rem; display: grid; gap: 0.25rem; align-content: start; min-width: 0; }
+  .loop li + li::before { content: ""; position: absolute; left: -1.125rem; top: 50%; width: 1rem; height: 2px; background: var(--color-pr-text-faint); }
+  .loop b { font-family: var(--font-pr-display); font-size: 1.1875rem; font-weight: 700; text-transform: uppercase; }
+  .loop .clock { font-family: var(--font-pr-display); font-size: 0.875rem; font-weight: 600; color: var(--color-pr-lean); }
+  .loop span { font-size: 0.8125rem; line-height: 1.4; color: var(--color-pr-text-dim); }
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); gap: 0.625rem; }
+  .vcard { border: 1px solid var(--color-pr-rule); border-top: 3px solid var(--color-pr-accent); border-radius: var(--radius-pr); background: var(--color-pr-panel); padding: 0.75rem; display: grid; gap: 0.375rem; transition: opacity 0.25s; }
+  .vcard h3 { margin: 0; font-family: var(--font-pr-display); font-size: 1.125rem; font-weight: 700; text-transform: uppercase; }
+  .vcard .n { font-size: 0.8125rem; color: var(--color-pr-text-dim); }
+  .verdicts.focus .vcard:not(.on) { opacity: 0.4; }
+  .chip { justify-self: start; border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); padding: 0.125rem 0.5rem; font-family: var(--font-pr-display); font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-pr-text-dim); white-space: nowrap; }
+  .chip.proven, .chip.ship { border-color: var(--color-pr-win); color: var(--color-pr-win); }
+  .chip.leaning { border-color: var(--color-pr-lean); color: var(--color-pr-lean); }
+  .chip.against { border-color: var(--color-pr-loss); color: var(--color-pr-loss); }
+  .legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 0.5rem 1rem; margin: 0.75rem 0 0; padding: 0; }
+  .legend div { display: grid; gap: 0.25rem; }
+  .legend dd { margin: 0; font-size: 0.8125rem; line-height: 1.45; color: var(--color-pr-text-dim); }
+  .note { font-size: 0.8125rem; color: var(--color-pr-text-faint); }
+
+  /* ---- Ship rule ---- */
+  .gate { list-style: none; margin: 0 0 1.25rem; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.625rem; }
+  .gate li { border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); background: var(--color-pr-panel); padding: 0.75rem; display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.625rem; align-items: start; }
+  .gate svg { width: 1.375rem; height: 1.375rem; grid-row: span 2; color: var(--color-pr-win); }
+  .gate b { font-family: var(--font-pr-display); font-size: 1.0625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+  .gate span { font-size: 0.8125rem; line-height: 1.4; color: var(--color-pr-text-dim); }
+
+  details.more { margin-top: 1rem; border-top: 1px solid var(--color-pr-rule); padding-top: 0.5rem; }
+  details.more > summary { cursor: pointer; min-height: 40px; display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-pr-display); font-size: 1rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-pr-text); list-style: none; }
+  details.more > summary::-webkit-details-marker { display: none; }
+  details.more > summary::before { content: ""; width: 0.5rem; height: 0.5rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.2s; flex: none; }
+  details.more[open] > summary::before { transform: rotate(45deg); }
+  details.more ul { margin: 0.25rem 0 0.5rem; padding-left: 1.125rem; display: grid; gap: 0.3rem; font-size: 0.875rem; line-height: 1.5; color: var(--color-pr-text-dim); max-width: 72ch; }
+  details.more li strong { color: var(--color-pr-text); font-weight: 600; }
+  footer.wrap { padding-bottom: 2rem; font-size: 0.75rem; color: var(--color-pr-text-faint); }
+
+  @media (max-width: 64rem) {
+    .flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .flow li:nth-child(4)::before, .flow li:nth-child(4)::after { display: none; }
+  }
+  @media (max-width: 44rem) {
+    .flow, .loop { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+    .flow li + li::before, .loop li + li::before { left: 1.5rem; top: -1rem; width: 2px; height: 1rem; }
+    .flow li + li::after { display: block !important; left: calc(1.5rem - 4px); top: -0.4rem; border: 5px solid transparent; border-top-color: var(--color-pr-accent); border-bottom: 0; }
+    .flow li:nth-child(4)::before { display: block; }
+    .node { grid-template-columns: 6rem minmax(0, 1fr); column-gap: 0.75rem; }
+    .node .stage { grid-row: span 2; padding-top: 0.2rem; }
+    .duo, .gate { grid-template-columns: minmax(0, 1fr); }
+    .ship-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+    .ship-strip li + li::before { display: none; }
+    .ship-strip li span { width: 100%; }
+    .ci-row, .axis-cap { grid-template-columns: minmax(0, 1fr) auto; }
+    .ci-row .track { grid-column: 1 / -1; grid-row: 2; }
+    .axis-cap > span:first-child { display: none; }
+    .axis-cap .ends { grid-column: 1 / -1; }
+    .tl-track { grid-template-columns: 1fr 1fr 0.15fr 1fr; }
+    .tl-pt { font-size: 0.8125rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; } }
+</style>
+</head>
+<body data-sport="hub">
+  <header>
+    <div class="wrap">
+      <div class="frame-top">
+        <a href="/" class="wordmark" aria-current="page">Predictor</a>
+        <nav aria-label="Sports">
+          <div class="nav-scroller">
+            <a href="/">Home</a>
+            <a href="https://pl.40-160-91-131.sslip.io">Premier League</a>
+            <a href="https://sports.40-160-91-131.sslip.io/?sport=nfl">NFL</a>
+            <a href="https://sports.40-160-91-131.sslip.io/?sport=cfb">College football</a>
+            <a href="https://nba.40-160-91-131.sslip.io">NBA</a>
+            <a href="https://f1.40-160-91-131.sslip.io">F1</a>
+            <a href="/paper.html">Paper Trading</a>
+            <a href="/how-it-works.html" aria-current="page">How it works</a>
+          </div>
+          <span class="nav-fade" aria-hidden="true"></span>
+        </nav>
+      </div>
+      <div class="hero-strip">
+        <h1>How it works</h1>
+        <p class="lede">Five sports, one server. The market price leads, the model sits beside it, and every pick stays on the record.</p>
+      </div>
+    </div>
+  </header>
+  <script>
+    (function () {
+      var scroller = document.querySelector(".nav-scroller");
+      var fade = document.querySelector(".nav-fade");
+      if (!scroller || !fade) return;
+      function refresh() { fade.classList.toggle("show", scroller.scrollWidth > scroller.clientWidth + 1); }
+      refresh();
+      scroller.addEventListener("scroll", refresh);
+      window.addEventListener("resize", refresh);
+    })();
+  </script>
+
+  <main class="wrap" id="stage" data-sport="hub">
+    <div class="picker" role="group" aria-label="Show one sport">
+      <button type="button" class="pick" data-pick="all" data-sport="hub" aria-pressed="true">All sports</button>
+      <button type="button" class="pick" data-pick="pl" data-sport="pl" aria-pressed="false">Premier League</button>
+      <button type="button" class="pick" data-pick="nfl" data-sport="nfl" aria-pressed="false">NFL</button>
+      <button type="button" class="pick" data-pick="cfb" data-sport="cfb" aria-pressed="false">College football</button>
+      <button type="button" class="pick" data-pick="nba" data-sport="nba" aria-pressed="false">NBA</button>
+      <button type="button" class="pick" data-pick="f1" data-sport="f1" aria-pressed="false">F1</button>
+    </div>
+
+    <!-- 1. Data to pick -->
+    <section aria-labelledby="h-flow">
+      <h2 id="h-flow">From raw data to <em id="flow-name">a pick</em></h2>
+      <ol class="flow" id="flow" aria-live="polite"></ol>
+      <div class="drawer" id="drawer" role="region" aria-labelledby="drawer-title"></div>
+    </section>
+
+    <!-- 2. Infra -->
+    <section aria-labelledby="h-infra">
+      <h2 id="h-infra">One server runs <em>everything</em></h2>
+      <ol class="ship-strip" aria-label="How a change reaches the site">
+        <li><span><b>Push to main</b>any site's code</span></li>
+        <li><span><b>GitHub Actions</b>builds the image</span></li>
+        <li><span><b>Registry</b>ghcr.io, tagged by commit</span></li>
+        <li><span><b>Deploy</b>pull, restart, health check</span></li>
+        <li><span><b>Unhealthy?</b>rolls back to the last tag</span></li>
+      </ol>
+      <div class="vps" id="vps">
+        <div class="vps-head"><b>OVH VPS</b><span class="tech">Ubuntu · Docker Compose · 4 GB</span></div>
+        <div class="caddy"><b>Caddy</b><span>the only open door: HTTPS for every *.40-160-91-131.sslip.io name, routes each to its container</span></div>
+        <div class="boxes">
+          <button type="button" class="box" data-box="hub" data-sport="hub"><b>Hub</b><span>static pages, served from a checkout of this repo</span><span class="host">40-160-91-131.sslip.io</span></button>
+          <button type="button" class="box" data-box="pl" data-sport="pl"><b>PL</b><span>FastAPI + the React build, one container</span><span class="host">pl.</span></button>
+          <button type="button" class="box" data-box="f1" data-sport="f1"><b>F1</b><span>FastAPI + the React build, one container</span><span class="host">f1.</span></button>
+          <button type="button" class="box" data-box="nba" data-sport="nba"><b>NBA</b><span>FastAPI + React, own pick database on disk</span><span class="host">nba.</span></button>
+          <button type="button" class="box" data-box="nfl cfb" data-sport="hub"><b>Sports site</b><span>React build for NFL and CFB, calls both APIs</span><span class="host">sports.</span></button>
+          <button type="button" class="box" data-box="nfl" data-sport="nfl"><b>NFL API</b><span>FastAPI, no page of its own</span><span class="host">sports./nfl · nfl.</span></button>
+          <button type="button" class="box" data-box="cfb" data-sport="cfb"><b>CFB API</b><span>FastAPI, no page of its own</span><span class="host">sports./cfb · cfb.</span></button>
+          <button type="button" class="box" data-box="pl f1 nba nfl cfb" data-sport="hub"><b>Explainer</b><span>writes the plain-English match summary for all five</span><span class="host">sports./api/explain</span></button>
+        </div>
+      </div>
+      <details class="more">
+        <summary>New data never needs a redeploy</summary>
+        <ul>
+          <li><strong>PL, F1, NFL, CFB</strong>: a scheduled GitHub Action rebuilds <code>public_snapshot.json</code> and commits it; the running app re-reads it from GitHub every 5 minutes.</li>
+          <li><strong>NBA</strong> is the exception: two timers on the server run its pipeline inside the container (scores every 10 minutes; refresh, retrain and re-score daily at 13:40 UTC), and its pick record lives on a disk volume that survives redeploys.</li>
+          <li><strong>Deploys are automatic for all seven repos.</strong> A push to main on PL, F1, NBA, NFL, CFB, the sports frontend or this hub runs that repo's deploy workflow, which runs <code>deploy &lt;site&gt; &lt;commit&gt;</code> over SSH. That command is the only thing the CI key may run on the server.</li>
+          <li>The hub deploys by checking out the commit into a fresh folder and swapping a link, so a half-copied page is never served.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- 3. Market -->
+    <section aria-labelledby="h-market">
+      <h2 id="h-market">The market price <em>leads</em></h2>
+      <div class="duo">
+        <div class="face" aria-label="How a game card reads">
+          <div class="row market"><b>Market</b><div class="bar" aria-hidden="true"><i style="width: 100%"></i></div></div>
+          <div class="row model"><b>Model view</b><div class="bar" aria-hidden="true"><i style="width: 100%"></i></div></div>
+          <p>Every card headlines the Kalshi price. The model's number sits beside it, smaller, never as a tip. No price listed? The card says so.</p>
+        </div>
+        <div>
+          <div class="axis-cap"><span></span><span class="ends"><span>Model better</span><span>Market better &rarr;</span></span><span></span></div>
+          <ul class="ci-list dimmable" id="market-ci"></ul>
+          <div class="stat-line">
+            <span><b>0.00</b>weight the best blend gives the model, in every season</span>
+            <span><b>0 of 42</b>pre-set segments where the model knew something the market didn't</span>
+          </div>
+        </div>
+      </div>
+      <details class="more">
+        <summary>Why: the market beat the model in every test (Nov 17)</summary>
+        <ul>
+          <li>Each row is the log-loss gap between the model and the market on the same games, with a 95% bootstrap interval. Every interval sits on the market side.</li>
+          <li>The study fixed its questions, segments and decision rules before any result was computed, then fitted a model/market blend using only earlier seasons. The blend always came out as the market alone.</li>
+          <li>When the live model disagreed with Kalshi by 10 points or more, it was on the wrong side 42.3% of the time.</li>
+          <li>So the "model edge" flag stays off. The first missing information to add: who actually starts at QB (NFL), then injury news (NBA).</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- 4. Track record -->
+    <section aria-labelledby="h-record">
+      <h2 id="h-record">Every pick counts, <em>once</em></h2>
+      <div class="timeline">
+        <div class="tl-key">One counted pick per <span>game</span> &times; <span>player</span> &times; <span>stat</span> = the earliest recorded</div>
+        <div class="tl-track">
+          <div class="tl-pt counted"><b>First record</b>counted, never overwritten</div>
+          <div class="tl-pt"><b>Model rerun</b>kept on file, not counted again</div>
+          <div class="tl-kick" aria-hidden="true"><span>Kickoff</span></div>
+          <div class="tl-pt late"><b>After kickoff</b>if it's the first record, it counts, labelled</div>
+        </div>
+      </div>
+      <details class="more">
+        <summary>A rerun can't improve the record</summary>
+        <ul>
+          <li>The models are rerun often. The earliest recorded pick for a game, market and player is the one scored, so a later, better-informed rerun never replaces it or counts twice.</li>
+          <li>The headline is every counted pick; the figure beside it is the subset made before kickoff. A pick made after kickoff is labelled, never hidden.</li>
+          <li>The same rule grades player props: the earliest projection per game, player and stat.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- 5. Paper trading -->
+    <section aria-labelledby="h-paper">
+      <h2 id="h-paper">Paper bets, <em>settled for real</em></h2>
+      <ol class="loop">
+        <li><b>Log</b><span class="clock">15:45 · 23:35 UTC</span><span>each Kalshi rung the model would buy, at the ask, after the price collectors run</span></li>
+        <li><b>Close</b><span class="clock">every 15 min</span><span>captures the closing price for bets starting within 45 minutes</span></li>
+        <li><b>Settle</b><span class="clock">04:20 · 12:20 · 20:20 UTC</span><span>from Kalshi's own result, fees included</span></li>
+        <li><b>Verdict</b><span class="clock">per sport</span><span>proven, leaning, against, or not yet</span></li>
+      </ol>
+      <div class="verdicts" id="verdicts" aria-live="polite" aria-busy="true"><p class="note">Loading the ledger…</p></div>
+      <dl class="legend">
+        <div><dt><span class="chip proven">Proven</span></dt><dd>P&amp;L interval above zero and the model beats the price on log-loss</dd></div>
+        <div><dt><span class="chip leaning">Leaning</span></dt><dd>enough bets, average P&amp;L positive, not proven yet</dd></div>
+        <div><dt><span class="chip against">Against</span></dt><dd>P&amp;L interval below zero, or the market is clearly better</dd></div>
+        <div><dt><span class="chip">Not yet</span></dt><dd>under 100 settled bets or 50 games (F1 20, PL 60)</dd></div>
+      </dl>
+      <details class="more">
+        <summary>The ledger can't be edited after the fact</summary>
+        <ul>
+          <li>Append-only: a bet is written once, at the first price that qualifies. Settlement and price updates are new lines, never rewrites.</li>
+          <li>The price must come from before the start, and the model's number must be published before that price, or the row is a shadow: logged, never staked.</li>
+          <li>Only buyable prices: YES at the ask, NO at the ask. A dead or crossed quote is not logged. No real money, no account, no order code.</li>
+          <li>Full tables: <a href="/paper.html">Paper Trading</a>.</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- 6. Ship rule -->
+    <section aria-labelledby="h-ship">
+      <h2 id="h-ship">A model change ships only <em>on evidence</em></h2>
+      <ol class="gate">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><b>Walk-forward</b><span>train on the past, test on the next season, never tune on the test</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><b>Clear of zero</b><span>paired bootstrap 95% interval on the main metric, entirely on the better side</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"/></svg><b>Nothing worse</b><span>no other reported metric gets worse; a fail ships a write-up, not code</span></li>
+      </ol>
+      <div class="axis-cap"><span></span><span class="ends"><span>&larr; Worse</span><span>Better &rarr;</span></span><span></span></div>
+      <ul class="ci-list dimmable" id="ship-ci"></ul>
+      <details class="more">
+        <summary>One of four recent changes passed</summary>
+        <ul>
+          <li><strong>F1 grid layer: shipped.</strong> After qualifying, win and podium odds now weigh the starting slot (T × score − a × log grid). Win log-loss improved in every test season 2022–2026; podium improved too.</li>
+          <li><strong>PL fitted rho: rejected.</strong> A fitted low-score correlation moved draw odds toward the real draw rate, but no scored metric improved; rho stays 0.</li>
+          <li><strong>NBA injury report: rejected.</strong> Using tonight's report instead of "missed the last game" leaned the right way on win odds but its interval crossed zero, and totals leaned worse. Retry once a season of reports exists.</li>
+          <li><strong>NFL starting QB: rejected.</strong> A pre-game starter and his past form did not beat the served model; worse in games where the starter changed.</li>
+          <li>Each scale is per row (different metrics); right of the dashed line means the change helped.</li>
+        </ul>
+      </details>
+    </section>
+  </main>
+  <footer class="wrap">Built from the code in each site's repository, November 2026.</footer>
+
+  <script>
+    (function () {
+      var NAMES = { all: "a pick", pl: "a Premier League pick", nfl: "an NFL pick", cfb: "a college football pick", nba: "an NBA pick", f1: "an F1 pick" };
+      var STAGES = ["Sources", "Collect", "Features", "Model", "Serve", "Site"];
+
+      // Facts below are read from each repo's origin/main (data modules,
+      // workflows, models/manifest.json). Edit them when the code changes.
+      var FLOW = {
+        all: [
+          ["Public feeds", "ESPN, nflverse, CFBD, football-data, FastF1", ["<strong>PL</strong>: football-data.co.uk, football-data.org, Understat, FPL, ESPN", "<strong>NFL</strong>: nflverse (schedules, play-by-play, depth charts, injuries), Open-Meteo weather", "<strong>CFB</strong>: CollegeFootballData (games, team and advanced stats)", "<strong>NBA</strong>: ESPN's public API (schedule, box scores, rosters, injuries)", "<strong>F1</strong>: FastF1, Jolpica, OpenF1 (live), Open-Meteo", "Sportsbook odds (The Odds API, RapidAPI) and Kalshi prices for every sport"]],
+          ["Scheduled jobs", "GitHub Actions + 2 server timers", ["Snapshot rebuilds: PL every 20 min on match days, NFL every 3 h, CFB every 4 h, NBA and F1 every 6 h (F1 every 20 min on race weekends)", "Kalshi line collectors twice a day per sport, committed to each repo's <code>data/lines</code>", "NBA: injury report 4× a day; server timers for scores and the daily retrain", "F1: retrain check the Monday and Tuesday after a race"]],
+          ["Rolling form", "ratings, rest, matchups", ["Every sport builds features only from games before the one being predicted", "Ratings (Elo-style) per team or driver, rolling form, rest days, plus sport-specific inputs (xG for PL, EPA for CFB, grid slot for F1)"]],
+          ["Raced, then served", "a walk-forward race picks each model", ["<strong>PL</strong>: XGBoost expected goals → Dixon-Coles score grid", "<strong>NFL / CFB</strong>: ridge regression on margin, turned into odds with a fitted Normal", "<strong>NBA</strong>: logistic win model, ridge margin and total; XGBoost player props", "<strong>F1</strong>: XGBoost ranker → Plackett-Luce race simulation, plus a grid layer after qualifying"]],
+          ["Snapshot + API", "FastAPI in Docker", ["Each API answers from its precomputed public snapshot", "Picks are recorded the first time they are seen and never rewritten"]],
+          ["Market first", "Kalshi price, model beside", ["Cards headline the market probability with the model beside it", "Where Kalshi lists no line, the card says there is none"]]
+        ],
+        pl: [
+          ["Five feeds", "results, xG, FPL, fixtures, odds", ["<strong>football-data.co.uk</strong>: past results and closing odds", "<strong>football-data.org</strong>: fixtures, results, standings", "<strong>Understat</strong>: expected goals; <strong>FPL API</strong>: players", "<strong>ESPN</strong>: live scores; RapidAPI sportsbook and The Odds API for prices"]],
+          ["Every 20 min", "on match days, 11–22 UTC", ["Snapshot every 20 minutes 11:00–21:59 UTC on Sun, Mon, Wed, Fri, Sat; daily 08:00 UTC otherwise", "Kalshi EPL lines (1X2, totals, both teams to score) at 14:10 and 22:40 UTC"]],
+          ["Form + ratings", "rolling form, Elo/Pi, referee, xG", ["Venue-split rolling form, Elo and Pi ratings, referee, expected goals", "Built only from matches before the fixture"]],
+          ["XGBoost → Dixon-Coles", "expected goals priced as a score grid", ["Two XGBoost regressors predict home and away expected goals", "Those feed a Dixon-Coles grid (penaltyblog) that prices 1X2, exact score, both teams to score and over/under at once", "Chosen over plain Dixon-Coles, bivariate and covariate Poisson on held-out ranked probability score", "Low-score correlation (rho) stays 0: the fitted version failed the ship rule"]],
+          ["pl container", "FastAPI + React build", ["Serves the public snapshot, re-read from GitHub every 5 minutes", "Corners, cards and shots come from their own XGBoost models"]],
+          ["Market 1X2 first", "model beside it", ["Fixture cards and the match modal headline Kalshi's 1X2 price, the model beside it"]]
+        ],
+        nfl: [
+          ["nflverse", "+ weather, odds", ["<strong>nflverse</strong> (via nfl_data_py): schedules, play-by-play, player stats, depth charts, injuries", "<strong>Open-Meteo</strong>: game-day weather", "<strong>The Odds API</strong>: spreads, totals, moneylines"]],
+          ["Every 3 hours", "Kalshi twice a day", ["Snapshot rebuild every 3 hours", "Kalshi NFL game, total and yardage/receptions prop lines at 14:10 and 22:40 UTC"]],
+          ["10 columns", "Elo, form, rest, division", ["Pre-game Elo ratings and their difference", "Rolling points scored and allowed, rest days, division game"]],
+          ["Ridge margin", "won the race vs Elo and XGBoost", ["Elo, ridge and XGBoost raced on walk-forward log-loss; ridge won (0.6227 vs 0.6229 XGBoost, 0.6342 Elo)", "Margin becomes win, cover and total odds through a fitted Normal (σ ≈ 13 points); totals from XGBoost", "Props: XGBoost and quantile yardage models, a zero-inflated count model for receptions, Poisson for passing TDs"]],
+          ["nfl container", "API behind the sports site", ["FastAPI on the compose network; the sports site calls it at sports./nfl"]],
+          ["Market spread first", "model beside it", ["The games list headlines the market spread line, the model beside it"]]
+        ],
+        cfb: [
+          ["CFBD", "+ odds", ["<strong>CollegeFootballData API</strong>: games, team stats, advanced (EPA) stats, player stats", "The Odds API and RapidAPI sportsbook for prices"]],
+          ["Every 4 hours", "Kalshi twice a day", ["Snapshot rebuild every 4 hours", "Kalshi college football game, spread and total lines at 14:10 and 01:40 UTC"]],
+          ["14 columns", "Elo, form, opponent-adjusted EPA", ["Pre-game Elo ratings, rolling points, rest days, conference game", "Opponent-adjusted offensive and defensive EPA (exponentially weighted)"]],
+          ["Ridge margin", "won the race vs Elo and XGBoost", ["Elo, ridge and XGBoost raced on walk-forward log-loss; ridge won (0.5650 vs 0.5696 XGBoost, 0.5943 Elo)", "Margin becomes odds through a fitted Normal (σ ≈ 17 points); totals from ridge too"]],
+          ["cfb container", "API behind the sports site", ["FastAPI on the compose network; the sports site calls it at sports./cfb", "Seeds its stats cache at boot without re-billing paid API calls"]],
+          ["Market when listed", "or says there is none", ["Games list and match modal show the market line when Kalshi lists one, and say so when it doesn't"]]
+        ],
+        nba: [
+          ["ESPN", "+ sportsbook, Kalshi", ["<strong>ESPN public API</strong>: schedule, box scores, rosters, injury report", "RapidAPI sportsbook for prices; Kalshi game and player-stat ladders"]],
+          ["Server timers", "+ GitHub Actions", ["On the server: scores every 10 minutes; full refresh, retrain and re-score daily at 13:40 UTC", "GitHub Actions: data refresh 12:00 UTC, snapshot every 6 h, injury report 4× a day, Kalshi lines 15:30 and 23:15 UTC"]],
+          ["Team context", "four factors, Elo, rest, availability", ["Four factors, pre-game Elo, rest and travel, early-season handling", "Availability: share of a team's top-8 rotation minutes that missed its last game"]],
+          ["Race at every retrain", "logistic win · ridge margin and total", ["Logistic, ridge and XGBoost race on walk-forward each retrain; today logistic wins the win model, ridge wins margin and total", "Player props: XGBoost for points, rebounds, assists and threes"]],
+          ["nba container", "FastAPI + React, pick database on disk", ["Its track record lives on a volume that survives redeploys", "Retrained models are written to a volume too, so a deploy never reverts them"]],
+          ["Market moneyline first", "model beside it", ["Cards and game detail headline the market moneyline, the model beside it"]]
+        ],
+        f1: [
+          ["FastF1 + OpenF1", "+ Jolpica, weather", ["<strong>FastF1</strong>: session timing; <strong>Jolpica</strong>: results history", "<strong>OpenF1</strong>: live sessions; <strong>Open-Meteo</strong>: weather"]],
+          ["Race weekends", "every 20 min, Fri–Sun", ["Snapshot every 6 h, every 20 minutes over a race weekend", "Retrain check Monday and Tuesday 08:30 UTC after a race, gated against the current model", "Kalshi F1 lines at 14:10 and 22:40 UTC"]],
+          ["Session tiers", "driver Elo, team strength, grid", ["Driver Elo and constructor strength", "Features tiered by what is known: before the weekend, after practice, after qualifying"]],
+          ["Ranker → simulation", "XGBoost ranks, Plackett-Luce races", ["An XGBoost pairwise ranker scores each driver (beat Elo on walk-forward log-loss)", "Plackett-Luce Monte Carlo draws whole finishing orders, with retirement odds injected, so win, podium and points odds agree", "After qualifying, a two-number grid layer reweights win and podium by starting slot (shipped Nov 17)"]],
+          ["f1 container", "FastAPI + React build", ["Serves the public snapshot, re-read from GitHub every 5 minutes; live timing during sessions"]],
+          ["Market when listed", "timing tower says if not", ["The timing tower shows the market line when Kalshi lists one, and says so when it doesn't"]]
+        ]
+      };
+
+      var stage = document.getElementById("stage");
+      var flow = document.getElementById("flow");
+      var drawer = document.getElementById("drawer");
+      var vps = document.getElementById("vps");
+      var sport = "all";
+      var open = 3;
+
+      function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+      function renderFlow() {
+        var rows = FLOW[sport];
+        flow.innerHTML = rows.map(function (r, i) {
+          return '<li><button type="button" class="node" data-i="' + i + '" aria-expanded="' + (i === open) + '" aria-controls="drawer">' +
+            '<span class="stage">' + STAGES[i] + '</span><span class="title">' + esc(r[0]) + '</span><span class="when">' + esc(r[1]) + '</span></button></li>';
+        }).join("");
+        var r = rows[open];
+        // Detail bullets are trusted static strings above (they carry <strong>/<code>).
+        drawer.innerHTML = '<h3 id="drawer-title">' + STAGES[open] + ': ' + esc(r[0]) + '</h3><ul>' + r[2].map(function (d) { return "<li>" + d + "</li>"; }).join("") + "</ul>";
+        drawer.style.animation = "none"; void drawer.offsetWidth; drawer.style.animation = "";
+      }
+
+      function setSport(s) {
+        sport = s;
+        stage.setAttribute("data-sport", s === "all" ? "hub" : s);
+        document.getElementById("flow-name").textContent = NAMES[s];
+        document.querySelectorAll(".pick").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.pick === s)); });
+        vps.classList.toggle("focus", s !== "all");
+        document.querySelectorAll(".box").forEach(function (b) { b.classList.toggle("on", b.dataset.box.split(" ").indexOf(s) >= 0); });
+        document.querySelectorAll(".ci-list.dimmable .ci-row").forEach(function (row) {
+          row.classList.toggle("off", s !== "all" && row.dataset.sports.split(" ").indexOf(s) < 0);
+        });
+        var v = document.getElementById("verdicts");
+        v.classList.toggle("focus", s !== "all");
+        v.querySelectorAll(".vcard").forEach(function (c) { c.classList.toggle("on", c.dataset.s === s); });
+        renderFlow();
+      }
+
+      document.querySelector(".picker").addEventListener("click", function (e) {
+        var b = e.target.closest(".pick"); if (b) setSport(b.dataset.pick);
+      });
+      flow.addEventListener("click", function (e) {
+        var b = e.target.closest(".node"); if (!b) return;
+        open = +b.dataset.i; renderFlow();
+        flow.querySelector('[data-i="' + open + '"]').focus();
+      });
+      vps.addEventListener("click", function (e) {
+        var b = e.target.closest(".box"); if (!b) return;
+        var ids = b.dataset.box.split(" ");
+        setSport(ids.length === 1 && ids[0] !== "hub" ? ids[0] : "all");
+      });
+
+      // Interval rows. lo/hi/pt are already signed so that right = the label on the right.
+      function ciRows(el, rows, domainFor) {
+        el.innerHTML = rows.map(function (r) {
+          var d = domainFor(r), span = d[1] - d[0];
+          var x = function (v) { return ((v - d[0]) / span * 100).toFixed(2) + "%"; };
+          return '<li class="ci-row" data-sports="' + r.sports + '" style="--c:' + r.color + '">' +
+            '<span class="lbl">' + esc(r.label) + '<small>' + esc(r.small) + '</small></span>' +
+            '<span class="track" role="img" aria-label="' + esc(r.aria) + '"><span class="zero" style="left:' + x(0) + '"></span>' +
+            '<span class="ci" style="left:' + x(r.lo) + ';width:calc(' + x(r.hi) + ' - ' + x(r.lo) + ')"></span>' +
+            '<span class="pt" style="left:' + x(r.pt) + '"></span></span>' +
+            '<span class="val">' + esc(r.val) + '<small>' + esc(r.valSmall) + '</small></span></li>';
+        }).join("");
+      }
+
+      // Market-anchor study (predictor-hub docs/research/2026-11-17-market-anchor.md, table 2.1):
+      // log-loss of the model minus the market, positive = market better.
+      var LOSS = "var(--color-pr-loss)";
+      var market = [
+        { label: "Kalshi, live", small: "NFL + NBA + CFB, 439 games", pt: 0.0372, lo: 0.0208, hi: 0.0542, sports: "nfl nba cfb" },
+        { label: "NFL vs moneyline", small: "2017–2026, 2,577 games", pt: 0.0256, lo: 0.0174, hi: 0.0338, sports: "nfl" },
+        { label: "NFL vs spread", small: "2002–2026, 6,633 games", pt: 0.0203, lo: 0.0157, hi: 0.0248, sports: "nfl" },
+        { label: "PL vs Pinnacle close", small: "5 seasons, 1,730 matches", pt: 0.0240, lo: 0.0150, hi: 0.0326, sports: "pl" },
+        { label: "PL vs Bet365 open", small: "5 seasons, 1,900 matches", pt: 0.0181, lo: 0.0107, hi: 0.0253, sports: "pl" }
+      ].map(function (r) {
+        r.color = LOSS; r.val = "+" + r.pt.toFixed(4); r.valSmall = "[" + r.lo.toFixed(4) + ", " + r.hi.toFixed(4) + "]";
+        r.aria = "Market better by " + r.pt.toFixed(4) + " log-loss, 95% interval " + r.lo.toFixed(4) + " to " + r.hi.toFixed(4);
+        return r;
+      });
+      ciRows(document.getElementById("market-ci"), market, function () { return [-0.01, 0.06]; });
+
+      // Ship-rule outcomes, gain = positive when the change helped. Sources:
+      // F1_Predictor docs/f1_grid_layer.md, PL_Predictor docs/pl_fitted_rho_findings.md,
+      // NBA_Predictor docs/nba-injury-report-availability-2026-11.md, NFL_Predictor docs/nfl_qb_pregame_eval.md.
+      var ship = [
+        { label: "F1 grid layer", small: "win log-loss · 112 races", pt: 0.0260, lo: 0.0145, hi: 0.0370, dp: 4, sports: "f1", ok: true },
+        { label: "PL fitted rho", small: "1X2 RPS · 1,900 matches", pt: -0.000032, lo: -0.000118, hi: 0.000049, dp: 6, sports: "pl" },
+        { label: "NBA injury report", small: "win log-loss · 204 games", pt: 0.0048, lo: -0.0051, hi: 0.0146, dp: 4, sports: "nba" },
+        { label: "NFL starting QB", small: "margin MAE (points)", pt: -0.0173, lo: -0.0448, hi: 0.0099, dp: 4, sports: "nfl" }
+      ].map(function (r) {
+        var f = function (v) { return (v > 0 ? "+" : "") + v.toFixed(r.dp); };
+        r.color = r.ok ? "var(--color-pr-win)" : "var(--color-pr-fill-mute)";
+        r.val = r.ok ? "Shipped" : "Rejected";
+        r.valSmall = f(r.pt) + " [" + f(r.lo) + ", " + f(r.hi) + "]";
+        r.aria = r.label + ": " + r.val + ". Gain " + f(r.pt) + ", 95% interval " + f(r.lo) + " to " + f(r.hi);
+        return r;
+      });
+      ciRows(document.getElementById("ship-ci"), ship, function (r) {
+        var m = Math.max(Math.abs(r.lo), Math.abs(r.hi)) * 1.15; return [-m, m];
+      });
+      document.querySelectorAll("#ship-ci .val").forEach(function (el, i) { el.style.color = ship[i].ok ? "var(--color-pr-win)" : "var(--color-pr-text-dim)"; });
+
+      // Live per-sport verdicts, read the same way paper.html reads them.
+      var SPORTS = [["pl", "Premier League"], ["nfl", "NFL"], ["cfb", "College football"], ["nba", "NBA"], ["f1", "F1"]];
+      var LABEL = { proven: "Proven", leaning: "Leaning", against: "Against", not_yet: "Not yet" };
+      async function loadReport() {
+        try {
+          var res = await fetch("https://raw.githubusercontent.com/Kevocado/predictor-hub/main/data/paper/report.json");
+          if (res.ok) return await res.json();
+        } catch (e) { /* fall through to the baked copy */ }
+        var baked = await fetch("./data/paper/report.json");
+        if (!baked.ok) throw new Error("no report");
+        return baked.json();
+      }
+      var vEl = document.getElementById("verdicts");
+      loadReport().then(function (r) {
+        var per = (r.verdicts && r.verdicts.per_sport) || {};
+        vEl.innerHTML = SPORTS.map(function (s) {
+          var v = per[s[0]] && per[s[0]].all_time;
+          var chip = v ? '<span class="chip ' + esc(v.status) + '">' + esc(LABEL[v.status] || v.status) + "</span>" : '<span class="chip">No verdict</span>';
+          var n = v ? v.n_settled_bets.toLocaleString() + " settled bets · " + v.n_events + " games" : "no settled Kalshi bets in the ledger";
+          return '<div class="vcard" data-sport="' + s[0] + '" data-s="' + s[0] + '"><h3>' + s[1] + "</h3>" + chip + '<span class="n">' + n + "</span></div>";
+        }).join("");
+        vEl.setAttribute("aria-busy", "false");
+        setSport(sport);
+      }).catch(function () {
+        vEl.innerHTML = '<p class="note">Could not load the ledger right now. <a href="/paper.html">Paper Trading</a> has the full table.</p>';
+        vEl.setAttribute("aria-busy", "false");
+      });
+
+      // #nfl, #pl ... opens the page on that sport, so a link can point at one path.
+      var h = location.hash.slice(1);
+      setSport(FLOW[h] ? h : "all");
+    })();
+  </script>
+<script data-goatcounter="https://predictorhub.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>

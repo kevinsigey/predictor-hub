@@ -29,6 +29,7 @@ test("carries the family frame: wordmark and a switcher to every sport", () => {
     "NBA",
     "F1",
     "Paper Trading",
+    "How it works",
   ]);
   // The wordmark links home and is the current page on the hub (it sits beside
   // the nav, not inside it, matching GlobalNav's separation of home from the
@@ -44,6 +45,7 @@ test("carries the family frame: wordmark and a switcher to every sport", () => {
   // sport hosts are asserted by "links point at the VPS sites" above; here we
   // pin Paper Trading's local route and the nav-scroller markup.
   assert.match(html, /<a href="\/paper\.html">Paper Trading<\/a>/);
+  assert.match(html, /<a href="\/how-it-works\.html">How it works<\/a>/);
   assert.match(html, /<div class="nav-scroller">/);
   assert.match(html, /<span class="nav-fade" aria-hidden="true"><\/span>/);
 });

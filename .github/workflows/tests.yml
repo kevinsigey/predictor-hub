@@ -54,6 +54,7 @@ jobs:
           node --test \
             tests/craft-floor.test.mjs \
             tests/home.test.mjs \
+            tests/how-it-works.test.mjs \
             tests/hub.test.mjs \
             tests/paper-page.test.mjs \
             tests/paper-workflows.test.mjs \

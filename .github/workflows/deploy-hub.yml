@@ -11,6 +11,7 @@ on:
     paths:
       - 'index.html'
       - 'paper.html'
+      - 'how-it-works.html'
       - 'teasers.js'
       - 'home.js'
       - 'tools/**'
