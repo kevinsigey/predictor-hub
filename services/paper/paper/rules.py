@@ -52,6 +52,9 @@ def validate(spec: dict) -> dict:
     stamp = sources.parse_ts(spec["prereg_at"])
     if stamp is None or not spec["prereg_at"].endswith(("Z", "+00:00")):
         raise ValueError(f"rule {spec['id']}: prereg_at must be a UTC timestamp")
+    written = sources.parse_ts(spec.get("written_at"))
+    if written is not None and stamp < written:
+        raise ValueError(f"rule {spec['id']}: prereg_at may not precede written_at")
     kill = spec["kill"]
     if not (0 < kill.get("max_days", 0) <= MAX_DAYS and 0 < kill.get("max_trades", 0) <= MAX_TRADES):
         raise ValueError(f"rule {spec['id']}: kill limits may not exceed {MAX_DAYS} days / {MAX_TRADES} trades")

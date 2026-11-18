@@ -221,3 +221,32 @@ L=<dir>; for r in NBA NFL CFB PL F1; do (cd <Projects>/${r}_Predictor && for f i
 python3 scripts/research/data_angles_probes.py --selftest
 python3 scripts/research/data_angles_probes.py $L <Projects>/PL_Predictor/data/cache/football_data > scripts/research/data_angles_probes.log
 ```
+
+## Registered shadow rules (2026-11-18)
+
+**Registered:** `data/paper/rules/cfb-moneyline-early-disagreement.json` (angle 1, CFB moneyline cell). Exact rule,
+threshold and metric are in the file and were written before any data it is judged on: the earliest proven pre-start
+CFB moneyline score row, decided at least 24 h before the true start, YES spread at most 8 points; if
+|model_p - mid| >= 0.10, buy the model's side at its own ask, hold to settlement; metric = net c/contract after the
+taker fee, clustered by game. Promotion: the report's three-leg test (n >= 150, low95 > 0, paired low95 > 0 vs the
+live model on the same games), reported as "eligible" only. Kill: 60 days or 300 trades, whichever first.
+Expected power is low: the same filter over the score rows that already exist (8-17 Nov, not evidence) admits 21
+markets in 9.5 days, and the CFB slate thins after 6 Dec, so 150 settled trades inside 60 days is unlikely and the
+honest expected outcome is a recorded kill.
+
+**Not registered: NBA props.** The ledger holds no prop rows (`log.py` skips every player market as
+`not_a_game_market`), so a prop rule would have no population. What logging props needs, in order:
+
+1. **A probability per rung, at the rung's own strike.** The NBA site must publish, in the committed
+   `public_snapshot.json` (or a sibling file the ledger reads), one row per (game, player, stat, strike) with
+   P(stat >= strike) in [0, 1] from the served props model's distribution, not a projection of the stat and not one
+   probability copied across the ladder (the defect `p_over_line` fixes for totals).
+2. **Keys the ledger can join without a name table:** the site's `game_id`, and the Kalshi player token as it appears
+   in the ticker (e.g. `NYKJBRUNSON11` in `KXNBAPTS-26OCT22BOSNYK-NYKJBRUNSON11-25`), plus the stat and strike.
+3. **Provenance:** `generated_at` per row (the ordering guard needs it to predate the price) and the props model's
+   version/fingerprint, so a retrain starts a fresh sample.
+4. **Hub side:** a `props` branch in `log.py` that prices a rung from that row (both sides, as for game rungs),
+   segments `nba:points|rebounds|assists|threes` in `segments.json`, logged as shadows first. Score rows: one per
+   (game, player, stat), the rung closest to 50c.
+5. **Then register** a props shadow rule (angle 2: paired log loss of model vs mid, clustered by game, with a
+   walk-forward blend weight) with its own PREREG_AT, once rows are accruing.
