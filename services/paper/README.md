@@ -288,3 +288,11 @@ population and `parameters` (the exact threshold), the `metric`, `prereg_at`
 - Shadows never change live behaviour: nothing in the logger, settlement or
   the segment gate reads them, and "eligible" is the strongest word the report
   uses. Promotion to live needs Kevin's approval.
+
+## Replay discipline
+
+Rows derived from a replay or backtest (`backtest`, `exploratory` or `replay`
+set; `paper/backtest.py` writes `data/paper/backtest.jsonl`) take a **1c per
+contract haircut** and never rank a segment, enter a verdict or count toward a
+shadow rule. The report's `replay` block shows them per sport:market beside the
+forward ledger's settled candidates and states `agree_in_direction`.
