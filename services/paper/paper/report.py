@@ -613,6 +613,13 @@ def apply_exclusions(rows: list[dict], scores: list[dict], starts: dict | None):
 #: against us between the frozen decision price and the fill observation.
 SLIPPAGE_CAP = 0.03
 
+#: Only a quote this soon after the decision says anything about slippage. A
+#: later one measures where the market went (information, i.e. CLV), and
+#: setting those rows aside would drop exactly the bets the market moved
+#: against, flattering P&L. Collectors run hours apart, so most rows are
+#: "unobserved" until quotes are captured near the decision.
+FILL_WINDOW_SECONDS = 15 * 60
+
 
 def fill_observations(observed: list[dict]) -> dict[str, list[tuple]]:
     """{ticker: [(seen_at, yes ask, no ask), ...]} of pre-start quotes, oldest first.
@@ -644,6 +651,8 @@ def fill_ask(row: dict, fill_obs: dict[str, list[tuple]] | None) -> float | None
     column = 2 if (row.get("side") or "yes") == "no" else 1
     for quote in (fill_obs or {}).get(row.get("ticker"), []):
         if quote[0] > decided and quote[column] is not None:
+            if (quote[0] - decided).total_seconds() > FILL_WINDOW_SECONDS:
+                return None
             return quote[column]
     return None
 
