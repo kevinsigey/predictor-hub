@@ -201,3 +201,36 @@ test("the real report renders: biggest sample first, no edge claimed", () => {
   if (!m.sports.some((s) => s.q3.status === "proven")) assert.doesNotMatch(line, /proven|beat/i);
   assert.doesNotMatch(html, /Beats the market/);
 });
+
+test("the YES/NO split is drawn per sport and its dropdown is titled by its main point", () => {
+  assert.match(html, /id="side-split"/);
+  const split = Lib.sideSplit({
+    per_sport: { nba: { by_side: { yes: { n: 30 }, no: { n: 70 } } }, nfl: { by_side: { yes: { n: 5 }, no: { n: 0 } } } },
+    totals: { by_side: { yes: { net_cents_per_contract: 1.25 }, no: { net_cents_per_contract: -0.5 } } },
+  });
+  assert.deepEqual(Array.from(split.rows, (r) => r.key), ["nba", "nfl"]);
+  assert.equal(split.rows[0].yesShare, 0.3);
+  assert.equal(split.point, "NO is 67% of 105 bets; settled YES nets +1.3¢, NO nets −0.5¢ per contract");
+  assert.equal(Lib.sideSplit({}).point, "No bets logged yet");
+});
+
+test("each shadow rule gets a card: n, fill rate, net and paired CIs, status", () => {
+  assert.match(html, /id="rule-cards"/);
+  const base = { description: "d", prereg_at: "2026-11-19T00:00:00Z", n_settled: 3, n_games: 3, fill_rate: null,
+    days_since_prereg: 10, kill_limits: { max_days: 60, max_trades: 300 },
+    promotion: { min_n: 150, n_games: 3, net_cents_per_contract: 4.2, net_ci95: [-10, 18],
+                 paired_cents_per_contract: 1.1, paired_ci95: [-8, 9], legs: { n: false, net_low95: false, paired_low95: false } } };
+  const [c] = Lib.ruleCards({ shadow_rules: { r: { ...base, status: "collecting" } } });
+  assert.equal(c.point, "Collecting: 3 of 150 settled trades, 50 days left");
+  assert.deepEqual(Array.from(c.net.ci), [-10, 18]);
+  assert.equal(c.paired.est, 1.1);
+  const [k] = Lib.ruleCards({ shadow_rules: { r: { ...base, status: "killed",
+    kill: { killed_at: "2027-01-18T00:00:00+00:00", reason: "kill limit reached without passing the promotion test" } } } });
+  assert.match(k.point, /^Killed 2027-01-18: kill limit/);
+  const [e] = Lib.ruleCards({ shadow_rules: { r: { ...base, status: "eligible" } } });
+  assert.match(e.point, /needs Kevin's approval/);
+  for (const [s, t] of [["collecting", "Collecting"], ["eligible", "Eligible"], ["killed", "Killed"]]) {
+    assert.match(Lib.ruleChip(s), new RegExp(`class="chip ${s}">${t}<`));
+  }
+  assert.equal(Lib.ruleCards({}).length, 0);
+});
