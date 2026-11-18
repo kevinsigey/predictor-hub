@@ -764,7 +764,13 @@ def render(report: dict) -> str:
 
 
 def site_starts(root) -> dict | None:
-    """{(sport, game_id): true start} from each site's public snapshot, or None without a root."""
+    """{(sport, game_id): true start} from each site's public snapshot, or None without a root.
+
+    PL also contributes ("pl-teams", home, away, date) entries from its
+    tracking picks: played fixtures leave the snapshot, and their old
+    ledger rows resolve through the fixture key instead (see
+    `sources.row_start`).
+    """
     if not root:
         return None
     out: dict = {}
@@ -772,6 +778,9 @@ def site_starts(root) -> dict | None:
         snap = sources.read_snapshot(Path(root) / sources.SITE_FOR_SPORT[sport] / "data" / "public_snapshot.json")
         for game_id, start in sources.game_starts(snap, sport).items():
             out[(sport, game_id)] = start
+    pl_picks = Path(root) / sources.SITE_FOR_SPORT["pl"] / "data" / "tracking_picks.jsonl"
+    for key, start in sources.pl_tracking_starts(pl_picks).items():
+        out[("pl-teams",) + key] = start
     return out
 
 

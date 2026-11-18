@@ -387,10 +387,87 @@ def row_start(row: dict, starts: dict | None = None) -> datetime | None:
     An older row's `kickoff` is the late Kalshi value, so it is re-derived from
     `starts[(sport, game_id)]`; None when the game is not in the schedule.
     With `starts=None` the row's own `kickoff` is used.
+
+    PL fallback: a played fixture drops out of PL's public snapshot (its
+    event id is replaced by a `backfill-*` id), so an old PL row's game_id
+    is never in the snapshot-derived starts. Its start is then looked up
+    by fixture -- teams and date, both carried by its Kalshi ticker --
+    in the PL tracking-picks index `site_starts` adds under
+    ("pl-teams", home, away, date) keys. Never derived from the row's
+    own Kalshi time: occurrence minus a game length is a guess, and a
+    guessed start would admit prices nobody can show were pre-game.
     """
     if starts is None or "expected_end" in row or row.get("sport") == "f1":
         return parse_ts(row.get("kickoff"))
-    return starts.get((row.get("sport"), str(row.get("game_id") or "")))
+    start = starts.get((row.get("sport"), str(row.get("game_id") or "")))
+    if start is None and row.get("sport") == "pl":
+        key = _pl_fixture_key(row)
+        if key is not None:
+            start = starts.get(("pl-teams",) + key)
+    return start
+
+
+_PL_CODE_TO_NAME = {code: name for name, code in PL_TEAM_CODES.items()}
+_PL_TICKER_TAIL = re.compile(r"^(\d{2})([A-Z]{3})(\d{2})([A-Z]{3})([A-Z]{3})$")
+
+
+def _pl_fixture_key(row: dict) -> tuple[str, str, str] | None:
+    """(home name, away name, YYYY-MM-DD) from a PL row's Kalshi ticker.
+
+    The event ticker is `<SERIES>-<YYMMMDD><HOME><AWAY>` with the clubs
+    as three-letter codes, home first (see PL_TEAM_CODES). None when
+    the ticker does not parse or a club is not in the map.
+    """
+    ticker = row.get("event_ticker") or row.get("ticker")
+    if not isinstance(ticker, str):
+        return None
+    tail = ticker.rsplit("-", 1)[-1]
+    if len(tail) == 3:  # a market ticker: drop the selection suffix
+        tail = ticker.rsplit("-", 2)[-2] if ticker.count("-") >= 2 else tail
+    match = _PL_TICKER_TAIL.match(tail)
+    if match is None:
+        return None
+    yy, mon, dd, home_code, away_code = match.groups()
+    home = _PL_CODE_TO_NAME.get(home_code)
+    away = _PL_CODE_TO_NAME.get(away_code)
+    month = _MONTHS.get(mon)
+    if home is None or away is None or month is None:
+        return None
+    return home, away, f"20{yy}-{month:02d}-{int(dd):02d}"
+
+
+def pl_tracking_starts(path) -> dict[tuple[str, str, str], datetime]:
+    """{(home name, away name, date): commence} from PL's tracking picks.
+
+    PL_Predictor's `data/tracking_picks.jsonl` keeps one row per pick
+    (several per fixture) with the fixture's teams and `commence_time`,
+    including fixtures already played -- the ones the public snapshot
+    no longer lists. Its commence stamps are naive UTC (the snapshot
+    writes the same instants with a Z), so they are read with
+    `naive_is_utc`, the same opt-in NFL's gameday uses. A missing or
+    torn file yields what could be read.
+    """
+    out: dict[tuple[str, str, str], datetime] = {}
+    try:
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return out
+    for line in lines:
+        try:
+            pick = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(pick, dict):
+            continue
+        home, away = pick.get("team_home"), pick.get("team_away")
+        commence = pick.get("commence_time")
+        if not (isinstance(home, str) and isinstance(away, str)
+                and isinstance(commence, str)):
+            continue
+        start = site_start(commence, naive_is_utc=True)
+        if start is not None:
+            out[(home, away, commence[:10])] = start
+    return out
 
 
 def buyable_price(row: dict, side: str) -> float | None:
