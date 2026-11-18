@@ -343,6 +343,24 @@
   .chip.proven { border-color: var(--color-pr-win); color: var(--color-pr-win); }
   .chip.leaning { border-color: var(--color-pr-lean); color: var(--color-pr-lean); }
   .chip.against { border-color: var(--color-pr-loss); color: var(--color-pr-loss); }
+  .chip.eligible { border-color: var(--color-pr-win); color: var(--color-pr-win); }
+  .chip.killed { border-color: var(--color-pr-loss); color: var(--color-pr-loss); }
+  .block { margin-bottom: 1rem; }
+  .block-h { margin: 0 0 0.5rem; font-family: var(--font-pr-display); font-size: 1.125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .side-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); background: var(--color-pr-panel); padding: 0.875rem; }
+  .side-row { display: grid; grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr); gap: 0.5rem; align-items: center; font-size: 0.8125rem; }
+  .side-row .who { color: var(--color-pr-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side-bar { display: flex; height: 1.25rem; border-radius: var(--radius-pr); overflow: hidden; background: var(--color-pr-panel-2); }
+  .side-bar span { display: flex; align-items: center; padding: 0 0.375rem; font-size: 0.6875rem; font-weight: 600; white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; }
+  .side-bar .yes { background: var(--color-pr-text-dim); color: var(--color-pr-stage); }
+  .side-bar .no { background: var(--color-pr-fill-mute); color: var(--color-pr-text); }
+  .side-key { font-size: 0.75rem; color: var(--color-pr-text-faint); }
+  .rule-card { border-top-color: var(--color-pr-text-dim); }
+  .progress { height: 0.5rem; border-radius: var(--radius-pr); background: var(--color-pr-panel-2); overflow: hidden; }
+  .progress span { display: block; height: 100%; background: var(--color-pr-text-dim); }
+  .rule-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.25rem 0.75rem; margin: 0; font-size: 0.8125rem; }
+  .rule-facts dt { color: var(--color-pr-text-faint); }
+  .rule-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
 
   .qs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
   .q { border: 1px solid var(--color-pr-rule); border-radius: var(--radius-pr); background: var(--color-pr-panel); padding: 1rem; min-width: 0; }
@@ -427,6 +445,16 @@
     </div>
 
     <div class="cards" id="cards" aria-label="Answers by sport"></div>
+
+    <section class="block" id="sides" aria-labelledby="sides-h">
+      <h2 class="block-h" id="sides-h">Which side the ledger bought: YES or NO</h2>
+      <div class="side-grid" id="side-split"><p class="empty">Loading…</p></div>
+    </section>
+
+    <section class="block" id="shadows" aria-labelledby="shadows-h">
+      <h2 class="block-h" id="shadows-h">Shadow rules (preregistered, no stake)</h2>
+      <div class="cards" id="rule-cards"><p class="empty">Loading…</p></div>
+    </section>
 
     <details class="panel">
       <summary>How a pick is judged</summary>
@@ -636,8 +664,55 @@
         return parts.join(" ");
       }
 
+      // YES/NO split per sport, from per_sport[*].by_side. Biggest sport first.
+      function sideSplit(report) {
+        var per = (report && report.per_sport) || {};
+        var rows = Object.keys(per).filter(function (k) { return per[k] && per[k].by_side; }).map(function (k) {
+          var b = per[k].by_side, y = b.yes || {}, n = b.no || {};
+          var total = (num(y.n) || 0) + (num(n.n) || 0);
+          return { key: k, name: NAMES[k] || k.toUpperCase(), total: total, yes: y, no: n,
+            yesShare: total ? (num(y.n) || 0) / total : 0 };
+        }).filter(function (r) { return r.total > 0; }).sort(function (a, b) { return b.total - a.total; });
+        var all = rows.reduce(function (a, r) { a.n += r.total; a.no += num(r.no.n) || 0; return a; }, { n: 0, no: 0 });
+        var tot = (report && report.totals && report.totals.by_side) || {};
+        var yc = num((tot.yes || {}).net_cents_per_contract), nc = num((tot.no || {}).net_cents_per_contract);
+        var point = !all.n ? "No bets logged yet" :
+          "NO is " + Math.round(100 * all.no / all.n) + "% of " + all.n.toLocaleString("en-US") + " bets" +
+          (yc !== null || nc !== null ? "; settled " + [["YES", yc], ["NO", nc]].filter(function (x) { return x[1] !== null; })
+            .map(function (x) { return x[0] + " nets " + fmt("q3", x[1]); }).join(", ") + " per contract" : "");
+        return { rows: rows, point: point };
+      }
+
+      var RULE_STATUS = { collecting: "Collecting", eligible: "Eligible", killed: "Killed" };
+      function ruleChip(s) {
+        var k = RULE_STATUS[s] ? s : "collecting";
+        return '<span class="chip ' + k + '">' + RULE_STATUS[k] + "</span>";
+      }
+      // One card per preregistered shadow rule. `point` is the card's main point,
+      // used as the title of its collapsible details.
+      function ruleCards(report) {
+        var rules = (report && report.shadow_rules) || {};
+        return Object.keys(rules).sort().map(function (id) {
+          var r = rules[id] || {}, p = r.promotion || {}, k = r.kill_limits || {};
+          var min = num(p.min_n) || 150, settled = num(r.n_settled) || 0;
+          var daysLeft = num(k.max_days) !== null && num(r.days_since_prereg) !== null
+            ? Math.max(0, Math.ceil(k.max_days - r.days_since_prereg)) : null;
+          var point = r.status === "killed"
+            ? "Killed " + String((r.kill && r.kill.killed_at) || "").slice(0, 10) + ": " + ((r.kill && r.kill.reason) || "kill limit reached")
+            : r.status === "eligible"
+              ? "Eligible: all three legs pass. Going live needs Kevin's approval"
+              : "Collecting: " + settled + " of " + min + " settled trades" + (daysLeft !== null ? ", " + daysLeft + " days left" : "");
+          return { id: id, status: RULE_STATUS[r.status] ? r.status : "collecting", point: point, rule: r, min: min,
+            settled: settled, progress: Math.min(1, settled / min), daysLeft: daysLeft,
+            net: { est: num(p.net_cents_per_contract), ci: pair(p.net_ci95), n: num(p.n_games) },
+            paired: { est: num(p.paired_cents_per_contract), ci: pair(p.paired_ci95), n: num(p.n_games) },
+            legs: p.legs || {} };
+        });
+      }
+
       root.PaperLib = { forest: forest, model: model, heroLine: heroLine, needText: needText, statusLabel: statusLabel,
-        chip: chip, fmt: fmt, esc: esc, NAMES: NAMES, STATUS: STATUS };
+        chip: chip, fmt: fmt, esc: esc, NAMES: NAMES, STATUS: STATUS,
+        sideSplit: sideSplit, ruleCards: ruleCards, ruleChip: ruleChip };
     })(typeof window !== "undefined" ? window : this);
   </script>
   <script>
@@ -756,6 +831,62 @@
             mini(s, "q1", "Better than the market?", s.q1) + mini(s, "q2", "Before the market?", s.q2) + mini(s, "q3", "Money after fees?", s.q3) +
             why + "</article>";
         }).join("") || '<p class="empty">No sports logged yet.</p>') : "";
+
+        // ---- YES / NO split ----
+        var split = L.sideSplit(report);
+        document.getElementById("side-split").innerHTML = split.rows.length ? (
+          '<span class="side-key">Share of logged bets per sport, YES (light) and NO (dark)</span>' +
+          split.rows.map(function (r) {
+            var y = Math.round(r.yesShare * 100), n = 100 - y;
+            return '<div class="side-row" data-sport="' + esc(r.key) + '"><span class="who">' + esc(r.name) + "</span>" +
+              '<div class="side-bar" role="img" aria-label="' + esc(r.name + ": " + (r.yes.n || 0) + " YES, " + (r.no.n || 0) + " NO") + '">' +
+              (y ? '<span class="yes" style="width:' + y + '%">' + (y >= 18 ? "YES " + (r.yes.n || 0) : "") + "</span>" : "") +
+              (n ? '<span class="no" style="width:' + n + '%">' + (n >= 18 ? "NO " + (r.no.n || 0) : "") + "</span>" : "") +
+              "</div></div>";
+          }).join("") +
+          '<details class="more"><summary>' + esc(split.point) + '</summary><div class="table-scroll"><table><thead><tr>' +
+          "<th>Sport</th><th>Side</th><th>Bets</th><th>Settled</th><th>Hit rate</th><th>Net per contract</th></tr></thead><tbody>" +
+          split.rows.map(function (r) {
+            return [["YES", r.yes], ["NO", r.no]].map(function (pr) {
+              var v = pr[1] || {};
+              return "<tr><td>" + esc(r.name) + "</td><td>" + pr[0] + "</td><td>" + (v.n || 0) + "</td><td>" + (v.n_settled || 0) +
+                "</td><td>" + (typeof v.hit_rate === "number" ? Math.round(v.hit_rate * 100) + "%" : "—") +
+                "</td><td>" + L.fmt("q3", v.net_cents_per_contract) + "</td></tr>";
+            }).join("");
+          }).join("") + "</tbody></table></div></details>"
+        ) : '<p class="empty">The report does not split bets by side yet.</p>';
+
+        // ---- Shadow rule cards ----
+        var rc = L.ruleCards(report);
+        var dom = [-20, 20];
+        rc.forEach(function (c) {
+          [c.net, c.paired].forEach(function (q) {
+            [q.est].concat(q.ci || []).forEach(function (v) { if (v !== null) dom = [Math.min(dom[0], -Math.abs(v)), Math.max(dom[1], Math.abs(v))]; });
+          });
+        });
+        document.getElementById("rule-cards").innerHTML = rc.length ? rc.map(function (c) {
+          var r = c.rule, fill = typeof r.fill_rate === "number" ? Math.round(r.fill_rate * 100) + "%" : "not measured";
+          function leg(ok) { return ok ? "pass" : "not yet"; }
+          return '<article class="card rule-card">' +
+            "<header><h3>" + esc(c.id) + "</h3>" + L.ruleChip(c.status) + "</header>" +
+            '<span class="n">' + c.settled + " / " + c.min + " settled trades · " + (r.n_games || 0) + " games</span>" +
+            '<div class="progress" role="img" aria-label="' + c.settled + " of " + c.min + ' settled trades"><span style="width:' + Math.round(c.progress * 100) + '%"></span></div>' +
+            '<div class="mini"><div class="lbl"><span>Net per contract</span><b>' + L.fmt("q3", c.net.est) + "</b></div>" +
+            L.forest({ kind: "q3", label: c.id + " net per contract", est: c.net.est, ci: c.net.ci, n: c.net.n, domain: dom }) +
+            '<span class="fine">95%: ' + rangeText("q3", c.net) + "</span></div>" +
+            '<div class="mini"><div class="lbl"><span>Paired vs the live model</span><b>' + L.fmt("q3", c.paired.est) + "</b></div>" +
+            L.forest({ kind: "q3", label: c.id + " paired vs live model", est: c.paired.est, ci: c.paired.ci, n: c.paired.n, domain: dom }) +
+            '<span class="fine">95%: ' + rangeText("q3", c.paired) + "</span></div>" +
+            '<dl class="rule-facts"><dt>Fill rate</dt><dd>' + fill + "</dd><dt>YES / NO</dt><dd>" + (r.n_yes || 0) + " / " + (r.n_no || 0) + "</dd></dl>" +
+            '<details class="more"><summary>' + esc(c.point) + "</summary>" +
+            "<p>" + esc(r.description || "") + "</p>" +
+            '<dl class="rule-facts"><dt>Registered</dt><dd>' + esc(r.prereg_at || "—") + "</dd>" +
+            "<dt>Kill limits</dt><dd>" + esc(((r.kill_limits || {}).max_days || "?") + " days or " + ((r.kill_limits || {}).max_trades || "?") + " trades") + "</dd>" +
+            "<dt>n ≥ " + c.min + "</dt><dd>" + leg(c.legs.n) + "</dd><dt>Net low95 &gt; 0</dt><dd>" + leg(c.legs.net_low95) + "</dd>" +
+            "<dt>Paired low95 &gt; 0</dt><dd>" + leg(c.legs.paired_low95) + "</dd></dl>" +
+            "<p>Only rows decided after registration count. Eligible is the strongest word here: going live needs Kevin's approval.</p>" +
+            "</details></article>";
+        }).join("") : '<p class="empty">No shadow rules are registered in this report yet.</p>';
 
         // ---- Numbers table by sport ----
         var order = m.sports.map(function (s) { return s.key; }).filter(function (k) { return perSport[k]; });

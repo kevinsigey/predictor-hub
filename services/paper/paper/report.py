@@ -290,6 +290,19 @@ def _why_not_yet(reasons: list[str], *, n_settled: int, min_settled: int,
     return "; ".join(parts) if parts else "; ".join(reasons)
 
 
+def by_side(rows: list[dict]) -> dict:
+    """YES vs NO: rows bought, settled, hit rate and mean net c/contract per side."""
+    out = {}
+    for side in ("yes", "no"):
+        part = [r for r in rows if (r.get("side") or "yes") == side]
+        settled = [r for r in part if r.get("status") == STATUS_SETTLED]
+        pnls = [100.0 * float(r.get("pnl_per_contract") or 0.0) for r in settled]
+        out[side] = {"n": len(part), "n_settled": len(settled),
+                     "hit_rate": round(sum(1 for r in settled if _won(r)) / len(settled), 4) if settled else None,
+                     "net_cents_per_contract": round(stats.fmean(pnls), 4) if pnls else None}
+    return out
+
+
 def _per_sport(rows: list[dict], table: dict[str, dict], gate_cfg: dict,
                legacy_by_sport: dict[str, int]) -> dict[str, dict]:
     """One roll-up per sport, for the page's per-sport rows.
@@ -351,6 +364,7 @@ def _per_sport(rows: list[dict], table: dict[str, dict], gate_cfg: dict,
         unique_reasons = _collapse_reasons(reasons)
         out[sport] = {
             "sport": sport,
+            "by_side": by_side(sport_rows),
             "n_logged": len(sport_rows),
             "n_candidates": sum(1 for r in sport_rows if r.get("kind") != KIND_SHADOW),
             "n_shadow": sum(1 for r in sport_rows if r.get("kind") == KIND_SHADOW),
@@ -870,6 +884,7 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
             "segments_qualifying": sum(1 for v in table.values() if v["qualifies_for_edge_claim"]),
             "excluded_legacy_total_rows": n_legacy,
             "excluded_replay_rows": n_replay,
+            "by_side": by_side(rows),
             "excluded_in_play_rows": sum(excluded["in_play"].values()),
             "excluded_unresolved_start_rows": sum(excluded["unresolved_start"].values()),
             "excluded_same_p_rows": sum(excluded["same_p"].values()),
