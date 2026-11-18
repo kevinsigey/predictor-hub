@@ -557,6 +557,51 @@ def build_verdicts(rows: list[dict], points: list[dict], scores: list[dict], spo
             "pooled": both(None, default)}
 
 
+#: Leg 1 of the promotion test: settled trades a shadow rule needs.
+PROMOTION_MIN_N = 150
+
+
+def promotion_test(trades: list[dict], incumbent: list[dict], *,
+                   min_n: int = PROMOTION_MIN_N) -> dict:
+    """The three legs a shadow rule must ALL pass to be reported "eligible".
+
+    `trades` are the rule's settled trades and `incumbent` the live model's
+    settled candidate rows, each with `game_id` and net `pnl_per_contract`.
+
+      1. n >= min_n settled trades;
+      2. low95 of net cents/contract > 0, resampling GAMES (`stats.cluster_ci`,
+         by_row: the rungs of one game are one draw);
+      3. paired low95 > 0: per rule game, the rule's mean net c/contract minus
+         the incumbent's on that game (0 when the incumbent did not bet it),
+         games resampled.
+
+    Eligible is the strongest word here; promotion to live needs Kevin.
+    """
+    by_game: dict[str, list[float]] = {}
+    for t in trades:
+        by_game.setdefault(str(t["game_id"]), []).append(100.0 * float(t["pnl_per_contract"]))
+    inc: dict[str, list[float]] = {}
+    for r in incumbent:
+        inc.setdefault(str(r["game_id"]), []).append(100.0 * float(r["pnl_per_contract"]))
+    paired = {g: [stats.fmean(v) - (stats.fmean(inc[g]) if g in inc else 0.0)]
+              for g, v in by_game.items()}
+    net = stats.cluster_ci(by_game, by_row=True)
+    pair = stats.cluster_ci(paired, by_row=False)
+    r4 = lambda x: round(x, 4)
+    legs = {"n": len(trades) >= min_n,
+            "net_low95": bool(net and net["ci"][0] > 0),
+            "paired_low95": bool(pair and pair["ci"][0] > 0)}
+    return {
+        "n": len(trades), "n_games": len(by_game), "min_n": min_n,
+        "net_cents_per_contract": r4(net["mean"]) if net else None,
+        "net_ci95": [r4(net["ci"][0]), r4(net["ci"][1])] if net else None,
+        "paired_cents_per_contract": r4(pair["mean"]) if pair else None,
+        "paired_ci95": [r4(pair["ci"][0]), r4(pair["ci"][1])] if pair else None,
+        "legs": legs,
+        "eligible": all(legs.values()),
+    }
+
+
 def apply_exclusions(rows: list[dict], scores: list[dict], starts: dict | None):
     """Drop rows no figure may use. Returns (rows, scores, counts[reason][sport]).
 
