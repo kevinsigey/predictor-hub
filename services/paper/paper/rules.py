@@ -29,6 +29,7 @@ from pathlib import Path
 
 from . import sources
 from .fees import kalshi_fee_cents
+from .ledger import is_replay
 
 RULES_DIR = Path("data/paper/rules")
 KILLS_FILE = "kills.jsonl"
@@ -87,7 +88,7 @@ def trades(spec: dict, score_rows: list[dict]) -> list[dict]:
     prereg = sources.parse_ts(spec["prereg_at"])
     out = []
     for row in score_rows:
-        if row.get("sport") != spec["sport"] or row.get("market") != spec["market"]:
+        if row.get("sport") != spec["sport"] or row.get("market") != spec["market"] or is_replay(row):
             continue
         decided = sources.parse_ts(row.get("price_observed_at") or row.get("logged_at"))
         start = sources.parse_ts(row.get("kickoff"))
