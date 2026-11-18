@@ -17,7 +17,7 @@ from paper import sources, stats
 from paper.report import SLIPPAGE_CAP, build as build_report, fill_observations, set_aside_fills
 from paper.segments import gate
 
-LATER = "2026-10-18T08:00:00+00:00"
+LATER = "2026-10-17T20:10:00+00:00"  # inside the 15-minute fill window
 
 
 def _settled(row, result):
@@ -84,3 +84,15 @@ def test_a_capped_no_row_is_shown_separately_at_its_decision_price():
     assert rep["totals"]["n_logged"] == 0
     aside = rep["fills"]["set_aside"]["slippage_cap"]
     assert aside["n_settled"] == 1 and aside["pnl"] == pytest.approx(1 - 0.62 - row["fee"])
+
+
+def test_a_move_seen_hours_later_is_information_not_slippage():
+    """A quote outside the fill window says where the market went, not what we
+    could have filled at; capping on it would drop exactly the losing bets."""
+    (row,), _ = build([kalshi_row()], home_win=0.60)
+    obs = stats.annotate_observed([kalshi_row(snapshot_ts="2026-10-18T08:00:00+00:00",
+                                              yes_ask=0.60, yes_bid=0.58)])
+    for o in obs:
+        o["_kickoff"] = sources.parse_ts("2026-10-18T17:00:00+00:00")
+    kept, fills = set_aside_fills([row], fill_observations(obs))
+    assert kept == [row] and fills["n_fill_unobserved"] == 1
