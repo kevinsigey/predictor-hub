@@ -141,7 +141,7 @@ def test_a_high_total_rung_is_not_given_the_low_rungs_probability():
     # The old bug: every rung got one over_prob and "over 62.5" looked like a
     # huge edge at a 26c price.
     row = cfb_row(series="KXNCAAFTOTAL", stat="total", suffix="63", line=62.5,
-                  title="Full Game: Over 62.5 points scored", yes_ask=0.20, yes_bid=0.18)
+                  title="Full Game: Over 62.5 points scored", yes_ask=0.20, yes_bid=0.18, no_bid=0.80, no_ask=0.82)
     made, skipped = build_cfb([row])
     assert made == []
     assert skipped.get("below_edge_threshold") == 1
@@ -222,9 +222,15 @@ def test_a_spread_rung_is_priced_from_the_margin_at_its_own_line():
 def test_a_higher_spread_rung_is_not_given_the_lower_rungs_probability():
     # "over 26.5 points" is much less likely than "over 1.5", and the model
     # knows that. Pricing both from one figure is the bug this avoids.
-    made, skipped = build_cfb([spread_row(26.5, yes_ask=0.20, yes_bid=0.18)])
-    assert made == []
-    assert skipped.get("below_edge_threshold") == 1
+    made, skipped = build_cfb([spread_row(26.5, yes_ask=0.20, yes_bid=0.18, no_bid=0.80, no_ask=0.82)])
+    # The guard, in both-sides terms (the logger has evaluated NO since
+    # 2026-11-17): never a YES priced from the lower rung's figure. What
+    # logs is the NO side, and its model_p is this rung's own small
+    # probability (~0.087, against the 1.5 rung's ~0.26) -- the market
+    # sells "not over 26.5" at 82c while the rung's own figure says it
+    # is worth ~91c.
+    assert [r["side"] for r in made] == ["no"]
+    assert made[0]["model_p"] < 0.10
 
 
 def test_the_away_side_spread_is_priced_against_the_away_margin():
@@ -232,7 +238,7 @@ def test_the_away_side_spread_is_priced_against_the_away_margin():
     # rung about the away team must not be priced from the home margin. The
     # model has Buffalo by 7.5, so Miami (OH) winning by over 1.5 is a long
     # shot -- and the row is priced as one.
-    row = spread_row(1.5, team="Miami (OH)", yes_ask=0.20, yes_bid=0.18)
+    row = spread_row(1.5, team="Miami (OH)", yes_ask=0.20, yes_bid=0.18, no_bid=0.80, no_ask=0.82)
     made, skipped = build_cfb([row])
     assert made == []
     assert skipped.get("below_edge_threshold") == 1
@@ -244,7 +250,7 @@ def test_the_away_side_spread_is_priced_against_the_away_margin():
 def test_the_away_side_spread_is_logged_when_the_market_underprices_it():
     # The same rung, priced low enough to be an edge: the probability is the
     # AWAY team's, and it is the away team's margin that is used.
-    row = spread_row(1.5, team="Miami (OH)", yes_ask=0.20, yes_bid=0.18)
+    row = spread_row(1.5, team="Miami (OH)", yes_ask=0.20, yes_bid=0.18, no_bid=0.80, no_ask=0.82)
     snap = cfb_snapshot(predictions={"401866448": {
         "home_win_prob": 0.30, "away_win_prob": 0.70,
         "predicted_margin": -7.5, "predicted_total": 51.0,

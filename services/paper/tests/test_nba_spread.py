@@ -161,7 +161,7 @@ def test_a_spread_rung_is_priced_from_the_margin_at_its_own_line():
 def test_the_away_side_is_priced_from_the_away_margin():
     # The away team's margin is the NEGATIVE of the model's home margin, so a
     # rung about the away team must not be priced from the home margin.
-    made, _ = build_nba([spread_row(code="SAS", line=8.5, yes_ask=0.10, yes_bid=0.08)])
+    made, _ = build_nba([spread_row(code="SAS", line=8.5, yes_ask=0.10, yes_bid=0.08, no_bid=0.90, no_ask=0.92)])
     # P(away margin > 8.5) = P(home margin < -8.5) -- a long shot, so the
     # market's 10c price is not an edge and nothing is logged.
     assert made == []
@@ -172,7 +172,7 @@ def test_the_away_side_is_priced_from_the_away_margin():
 def test_a_higher_rung_is_not_given_the_lower_rungs_probability():
     # "over 24.5 points" is much less likely than "over 8.5", and the model
     # knows that. Pricing both from one figure is the bug this avoids.
-    made, skipped = build_nba([spread_row(code="HOU", line=24.5, yes_ask=0.20, yes_bid=0.18)])
+    made, skipped = build_nba([spread_row(code="HOU", line=24.5, yes_ask=0.20, yes_bid=0.18, no_bid=0.80, no_ask=0.82)])
     assert made == []
     assert skipped.get("below_edge_threshold") == 1
 
