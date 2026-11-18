@@ -293,8 +293,9 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
         if sport == "f1":
             # A Kalshi F1 contract is one driver's contract, so it is priced
             # from that driver's own probability, looked up by race and
-            # driver. The market is always the YES side: "Main Race: Max
+            # driver. That probability is the YES side's: "Main Race: Max
             # Verstappen wins" is the YES contract on Verstappen winning.
+            # Which side is logged is chosen further down, for every sport.
             side = "yes"
             resolved, reason = _f1_candidate(row, parts, games_by_sport.get(sport) or {})
             if resolved is None:
@@ -409,33 +410,71 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
         # The ask alone is not enough. A market with no bid, a wide spread, no
         # volume, or a 1-cent ask is not a market anybody can enter, and logging
         # it would report an edge that was never available to anyone.
-        yes_bid = row.get("yes_bid")
-        no_bid = row.get("no_bid")
+        #
+        # Both sides of the rung are evaluated, each at its own buyable ask,
+        # and the side with the larger fee-adjusted edge is the side logged.
+        # Until 2026-11-17 only YES was ever evaluated, so the ledger's 4,347
+        # rows are all YES rows: every rung where the model's disagreement
+        # pointed the other way was skipped as below threshold even when NO
+        # was cheap. model_p is the probability of YES (the rung's
+        # proposition); a Kalshi rung is a binary contract whatever the
+        # underlying event's shape -- a PL moneyline rung's NO is draw-or-away
+        # -- so the NO side's probability is exactly 1 - model_p, and its fee
+        # is the fee on the NO ask.
         volume = row.get("volume")
         open_interest = row.get("open_interest")
-        if not isinstance(yes_bid, (int, float)) or float(yes_bid) <= 0:
-            skip("no_bid")
-            continue
-        spread = price - float(yes_bid)
         max_spread = segments_mod.max_spread_points(config) / 100.0
-        if spread > max_spread:
-            skip("spread_too_wide")
+
+        def side_quote(which: str):
+            """(ask, spread) for one side, or (None, skip reason)."""
+            bid = row.get(f"{which}_bid")
+            if not isinstance(bid, (int, float)) or float(bid) <= 0:
+                return None, "no_bid"
+            ask = price if which == "yes" else sources.buyable_price(row, "no")
+            if ask is None:
+                return None, "no_bid"
+            if ask - float(bid) > max_spread:
+                return None, "spread_too_wide"
+            if ask <= 0.01 or ask >= 0.99:
+                return None, "dead_quote"
+            return (ask, ask - float(bid)), None
+
+        yes_q, yes_reason = side_quote("yes")
+        no_q, _no_reason = side_quote("no")
+        if yes_q is None and no_q is None:
+            # Neither side is a market anybody can enter; the YES side's
+            # reason is reported, as it was when YES was the only side.
+            skip(yes_reason)
             continue
         if not isinstance(volume, (int, float)) or float(volume) <= 0:
             skip("zero_volume")
             continue
-        if price <= 0.01 or price >= 0.99:
-            skip("dead_quote")
-            continue
 
-        fee_cents = kalshi_fee_cents(price * 100.0, contracts=1)
+        def side_terms(which: str, ask: float):
+            """(the side's own probability, fee in cents, fee-adjusted edge)."""
+            p_side = model_p if which == "yes" else 1.0 - model_p
+            fee_c = kalshi_fee_cents(ask * 100.0, contracts=1)
+            return p_side, fee_c, round((p_side - ask - fee_c / 100.0) * 100.0, 4)
+
+        options = []
+        if yes_q is not None:
+            options.append(("yes", yes_q, side_terms("yes", yes_q[0])))
+        if no_q is not None:
+            options.append(("no", no_q, side_terms("no", no_q[0])))
+        # The larger fee-adjusted edge wins; a tie goes to YES, the side the
+        # ledger has always taken.
+        side, (price, spread), (p_side, fee_cents, edge) = max(
+            options, key=lambda o: o[2][2])
         fee = fee_cents / 100.0
-        edge = round((model_p - price - fee) * 100.0, 4)
         if edge < threshold:
-            skip("below_edge_threshold")
+            # If the YES side could not even be quoted, its reason is the
+            # one recorded: it is why this rung was never a YES candidate,
+            # and the skip tally keeps its historical meaning. A quotable
+            # side that merely lacks edge is below_edge_threshold.
+            skip(yes_reason if yes_q is None else "below_edge_threshold")
             continue
 
-        bucket = bucket_label(model_p, segments_mod.buckets(config, sport))
+        bucket = bucket_label(p_side, segments_mod.buckets(config, sport))
         if bucket is None:
             skip("below_edge_threshold")
             continue
@@ -500,7 +539,12 @@ def candidate_rows(rows: list[dict], games_by_sport: dict[str, dict], config: di
     for made in sorted(best.values(), key=lambda r: r["logged_at"]):
         if made["kind"] != KIND_CANDIDATE:
             continue
-        made["stake"] = stake_for(made["model_p"], made["market_price"],
+        # Kelly takes the probability of the side actually bought: a NO
+        # row's model_p is still the YES probability (that is what the
+        # calibration record pairs against the contract result), so the
+        # staking probability is its complement.
+        stake_p = made["model_p"] if made["side"] != "no" else 1.0 - made["model_p"]
+        made["stake"] = stake_for(stake_p, made["market_price"],
                                   game_id=made["game_id"], committed_by_game=committed)
         committed[made["game_id"]] = committed.get(made["game_id"], 0.0) + made["stake"]
     return list(best.values()), skipped

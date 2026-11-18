@@ -12,6 +12,9 @@ rather than left to the arithmetic:
 
   win        result == "yes"  -> payout 1, pnl = (1 - price - fee)
   loss       result == "no"   -> payout 0, pnl = -(price + fee)
+             (for a row that bought NO the two swap: the holder wins
+             when the contract resolves "no". The stored outcome is
+             always the contract's result; only the pnl flips.)
   push/tie   a finalized market whose result is neither yes nor no. Kalshi
              resolves its own ties (a spread landing exactly on the number is
              settled by Kalshi's published rule, not by us), so a push does not
@@ -117,7 +120,15 @@ def settle(ledger, rows: list[dict], *, now: datetime | None = None) -> dict[str
             counts["unresolved"] += 1
             continue
         status, outcome = resolution(source)
-        pnl = pnl_per_contract(outcome, float(row["market_price"]), float(row["fee"]))
+        # The outcome is the CONTRACT's result; the pnl is the HOLDER's.
+        # A NO row wins exactly when the contract resolves "no", so its
+        # outcome flips before the payoff arithmetic (a void stays void).
+        # The record keeps the contract outcome -- it is what Kalshi
+        # resolved, and what the calibration record pairs against.
+        holder_outcome = outcome
+        if (row.get("side") or "yes") == "no":
+            holder_outcome = {"yes": "no", "no": "yes"}.get(outcome, outcome)
+        pnl = pnl_per_contract(holder_outcome, float(row["market_price"]), float(row["fee"]))
         ledger.append({
             "record": "settle",
             "id": candidate_id,

@@ -134,7 +134,7 @@ def test_total_probability_is_evaluated_at_the_rungs_own_line():
 
 
 def test_a_higher_rung_is_not_given_the_lower_rungs_probability():
-    made, _ = build_pl([total_row(3.5, yes_ask=0.20, yes_bid=0.18)])
+    made, _ = build_pl([total_row(3.5, yes_ask=0.20, yes_bid=0.18, no_bid=0.80, no_ask=0.82)])
     assert made == []
     # The model says a high line is unlikely too; the price would need to be far
     # below that to be a bet.

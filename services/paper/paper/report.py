@@ -39,6 +39,14 @@ REPORT_PATH = Path("data/paper/report.json")
 
 
 def _won(row: dict) -> bool:
+    """The HOLDER's win: a NO row wins when the contract resolves "no".
+
+    The stored outcome stays the contract's result (the calibration
+    record pairs it against the YES probability); whether the bet won
+    depends on which side the row bought.
+    """
+    if (row.get("side") or "yes") == "no":
+        return row.get("outcome") == "no"
     return row.get("outcome") == "yes"
 
 

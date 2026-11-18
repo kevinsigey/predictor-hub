@@ -40,9 +40,15 @@ def test_the_probability_is_for_the_rungs_own_line():
 
 def test_a_far_rung_is_not_given_the_book_lines_probability():
     # The old bug: "over 60.5" got ~0.5 and looked like a huge edge at a 26c price.
-    made, skipped = build([total_row(60.5, yes_ask=0.26, yes_bid=0.24)], cfg=TOTAL_CFG)
-    assert made == []
+    made, skipped = build([total_row(60.5, yes_ask=0.26, yes_bid=0.24, no_bid=0.74, no_ask=0.76)], cfg=TOTAL_CFG)
     assert p_over(60.5) < 0.2   # the model agrees with the market that this is unlikely
+    # The guard, in both-sides terms (the logger has evaluated NO since
+    # 2026-11-17): the rung never logs as a YES carrying the book line's
+    # probability. What logs is the NO side, priced off the rung's OWN
+    # probability -- the market sells "not over 60.5" at 76c while the
+    # rung's own figure says it is worth ~87c.
+    assert [r["side"] for r in made] == ["no"]
+    assert made[0]["model_p"] == pytest.approx(p_over(60.5), abs=1e-5)
 
 
 def test_missing_total_model_is_skipped_not_guessed():
