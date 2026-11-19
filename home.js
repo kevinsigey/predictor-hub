@@ -306,7 +306,13 @@ export function normalizeNBA({ games, playersByGame, rankings } = {}) {
     .sort((a, b) => new Date(a.start) - new Date(b.start));
   // Player rows arrive one per player per stat; pivot on player_id.
   const players = nbaPlayers(playersByGame);
-  return { sport: "nba", matches, players, rankings: rankings || [] };
+  // The players fan-out's address set, kept from the raw payload: the
+  // first four uncompleted games in payload order, prediction or not.
+  // The normalized matches above are a different set (predicted only,
+  // sorted by tip), and the deferred load must fetch the old one
+  // (Claude's #189 fix).
+  const playerGameIds = (games || []).filter((g) => !g.completed).slice(0, 4).map((g) => g.game_id);
+  return { sport: "nba", matches, players, rankings: rankings || [], playerGameIds };
 }
 
 /** NBA player rows pivoted per game. Split out of normalizeNBA so the
@@ -593,7 +599,7 @@ export function barsCard(sport, { view, tag, time = "", title, rows, foot }) {
  *  live in the decks. Curation order is the mockup's: hero, the
  *  consensus, one marquee per sport, then the player stories. A sport
  *  with nothing upcoming contributes nothing rather than a placeholder. */
-export function buildAllCards(states, now = new Date()) {
+export function buildAllCards(states, now = new Date(), { settled = true } = {}) {
   const cards = [];
   const usable = SPORT_ORDER.map((s) => states?.[s]).filter((st) => st && !st.failed);
   // The hero: the most confident match pick across the head-to-head
@@ -607,8 +613,13 @@ export function buildAllCards(states, now = new Date()) {
     }
   }
   const consensus = bestConsensus(states, hero);
-  if (hero) cards.push(matchCard(hero.sport, hero.m, { view: "all", wide: true, hero: true }));
-  if (consensus) cards.push(consensusCard(consensus));
+  // Hero and consensus are board-wide verdicts: painted from a
+  // partial board they swap as the remaining sports land, so both
+  // wait until every sport has settled (Claude's #189 fix). The hero
+  // is still computed — the marquee below dedupes against it — it is
+  // simply not crowned yet.
+  if (settled && hero) cards.push(matchCard(hero.sport, hero.m, { view: "all", wide: true, hero: true }));
+  if (settled && consensus) cards.push(consensusCard(consensus));
 
   const todayStr = ctDay(now);
   const marqueeOf = (st) => {
@@ -1030,7 +1041,7 @@ export function buildDeckCards(sport, st, record, nbaCal, excludeIds) {
  *  events today, the most confident call, the biggest gap, the first
  *  event, and how many models answered. A chip that cannot be computed is
  *  omitted — never estimated. */
-export function buildKpis(states, now = new Date()) {
+export function buildKpis(states, now = new Date(), { settled = true } = {}) {
   const kpis = [];
   const todayStr = ctDay(now);
   let eventsToday = 0;
@@ -1061,9 +1072,12 @@ export function buildKpis(states, now = new Date()) {
       if (!hero || m.pickProb > hero.m.pickProb) hero = { sport: st.sport, m };
     }
   }
-  if (hero) kpis.push({ b: pct(hero.m.pickProb), t: `most confident call · ${pickName(hero.m)}` });
+  // The hero and consensus chips are board-wide verdicts, held until
+  // every sport has settled, exactly like their cards (Claude's #189
+  // fix).
+  if (settled && hero) kpis.push({ b: pct(hero.m.pickProb), t: `most confident call · ${pickName(hero.m)}` });
   const consensus = bestConsensus(states, hero);
-  if (consensus) kpis.push({ b: pct(consensus.m.pickProb), t: `model and market agree · ${consensus.m.away} @ ${consensus.m.home}` });
+  if (settled && consensus) kpis.push({ b: pct(consensus.m.pickProb), t: `model and market agree · ${consensus.m.away} @ ${consensus.m.home}` });
   if (first) kpis.push({ b: fmtTime(first.d.toISOString()), t: "first event today" });
   kpis.push({ b: String(live), t: live === 5 ? "models live" : "of 5 models live" });
   return kpis;
@@ -1460,16 +1474,34 @@ export async function loadPlayers(sport, get, st) {
     return plPlayers(st.matches, byFixture);
   }
   if (sport === "nba") {
+    const ids = st.playerGameIds?.length
+      ? st.playerGameIds
+      : (st.matches || []).slice(0, 4).map((m) => m.id);
     const byGame = {};
     await Promise.all(
-      (st.matches || []).slice(0, 4).map(async (m) => {
-        const r = await settle(get(`/nba/games/${encodeURIComponent(m.id)}/players`));
-        if (r.ok) byGame[m.id] = r.v;
+      ids.map(async (id) => {
+        const r = await settle(get(`/nba/games/${encodeURIComponent(id)}/players`));
+        if (r.ok) byGame[id] = r.v;
       }),
     );
     return nbaPlayers(byGame);
   }
   return {};
+}
+
+/** Wave A replaces a sport's state with a picks-only load, whose
+ *  players are empty by construction. When the previous state (the
+ *  cache paint, usually) carries players and the fresh one brings
+ *  none, the old players ride forward until Wave B replaces them —
+ *  a returning visit must not lose the player cards it painted, and
+ *  must not lose them for good when Wave B fails (Claude's #189
+ *  fix). Football's props ride its picks load itself, so its fresh
+ *  players are real and never overridden here. */
+export function carryPlayers(prev, fresh) {
+  if (!prev || prev.failed || !fresh || fresh.failed) return fresh;
+  const empty = (p) => (Array.isArray(p) ? p.length === 0 : !p || !Object.keys(p).length);
+  if (empty(fresh.players) && !empty(prev.players)) fresh.players = prev.players;
+  return fresh;
 }
 
 const RECORD_PATHS = {
@@ -1506,8 +1538,8 @@ const sigOf = (x) => {
   }
 };
 
-function allCards() {
-  return buildAllCards(state.sports);
+function allCards(opts) {
+  return buildAllCards(state.sports, new Date(), opts);
 }
 
 function usedMatchIds(sport, cards) {
@@ -1555,12 +1587,16 @@ function render({ reconcile = false } = {}) {
   const headBox = document.querySelector("#deckhead");
   const kpisBox = document.querySelector("#kpis");
   if (!grid) return;
-  const cards = allCards();
+  // Settled = every sport has landed, one way or the other. Until
+  // then the board-wide verdicts (hero, consensus, their KPI chips)
+  // are held, so they never swap mid-load (Claude's #189 fix).
+  const settled = SPORT_ORDER.every((s) => state.sports[s]);
+  const cards = allCards({ settled });
   // KPIs belong to the All board; a filtered deck keeps its own header.
   // The strip only repaints when its content actually changed, so a
   // background patch never reflows it under the reader.
   if (kpisBox) {
-    const kpis = state.filter === "all" ? buildKpis(state.sports, now) : [];
+    const kpis = state.filter === "all" ? buildKpis(state.sports, now, { settled }) : [];
     const ksig = sigOf(kpis);
     if (ksig !== painted.kpiSig) {
       painted.kpiSig = ksig;
@@ -1583,7 +1619,12 @@ function render({ reconcile = false } = {}) {
     const sport = state.filter;
     const st = state.sports[sport];
     head = st && !st.failed ? deckHead(sport, st, state.records[sport]) : null;
-    if (!st || st.failed) {
+    if (!st) {
+      // No state yet is not a failure — the sport simply has not
+      // landed. A filtered deck shows a loading state instead of
+      // flashing "Couldn't load picks." (Claude's #189 fix).
+      items = [{ key: "__loading__", hash: "loading", paint: () => el("p", "empty-note", "Loading picks…") }];
+    } else if (st.failed) {
       const empty = {
         sport,
         kind: "empty",
@@ -1713,7 +1754,8 @@ async function boot() {
         // no picks for seconds. Now the first sport to land paints
         // and the rest patch in as they arrive, the same patching
         // the cache path already used.
-        state.sports[sport] = await loadSport(sport, netGet, { players: false });
+        const freshLoad = await loadSport(sport, netGet, { players: false });
+        state.sports[sport] = carryPlayers(state.sports[sport], freshLoad);
       } catch (err) {
         if (!state.sports[sport]) {
           state.sports[sport] = { sport, failed: true, matches: [], players: {} };

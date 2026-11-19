@@ -13,7 +13,9 @@ import {
   consensusCard,
   loadSport,
   loadPlayers,
+  carryPlayers,
   buildAllCards,
+  buildKpis,
   buildDeckCards,
   deckHead,
   sparkPoints,
@@ -361,4 +363,66 @@ test("spark and calibration points stay inside their plots", () => {
   }
   assert.equal(calibPoints([{ predicted: 0.5, actual: 0.5, n: 3 }]), ""); // one point is not a line
   assert.equal(calibPoints([{ predicted: 0.2, actual: 0.6, n: 10 }, { predicted: 0.8, actual: 0.2, n: 10 }]), "20,25.6 80,51.2");
+});
+
+test("an unsettled board holds its hero and consensus until every sport lands", () => {
+  // Claude's #189 fix: render fires when the FIRST sport lands, and a
+  // hero or consensus crowned from a partial board swaps as the rest
+  // arrive. The builders hold both until the board has settled; the
+  // marquee still shows the game, uncrowned.
+  const nfl = normalizeFootball("nfl", { week: nflWeek, games: nflGames, preds: nflPreds, props: nflProps });
+  const now = new Date("2026-11-01T12:00:00Z");
+  const early = buildAllCards({ nfl }, now, { settled: false });
+  assert.ok(!early.some((c) => c.notch), "hero painted from a partial board");
+  assert.ok(!early.some((c) => c.kind === "consensus"), "consensus painted from a partial board");
+  assert.ok(early.some((c) => c.kind === "match"), "marquee lost while unsettled");
+  const done = buildAllCards({ nfl }, now, { settled: true });
+  assert.equal(done[0].notch, true);
+  assert.ok(done.some((c) => c.kind === "consensus"));
+  const kpisEarly = buildKpis({ nfl }, now, { settled: false });
+  assert.ok(!kpisEarly.some((k) => /most confident call|model and market agree/.test(k.t)));
+  const kpisDone = buildKpis({ nfl }, now, { settled: true });
+  assert.ok(kpisDone.some((k) => /most confident call/.test(k.t)));
+});
+
+test("the NBA players fan-out keeps the pre-deferral set", async () => {
+  // Before the deferral, loadNBA fetched players for the first four
+  // uncompleted games in payload order -- including games with no
+  // prediction. The normalized matches (predicted only, sorted by
+  // tip) are a different set; loadPlayers must keep the old one
+  // (Claude's #189 fix).
+  const games = [
+    { game_id: "a1", home_team: "ORL", away_team: "BOS", tip_off: "2026-11-03T20:30Z", completed: false, rebuilt: false, prediction: { home_win_probability: 0.6 } },
+    { game_id: "a2", home_team: "NYK", away_team: "MIA", tip_off: "2026-11-01T18:00Z", completed: false, rebuilt: false },
+    { game_id: "a3", home_team: "DEN", away_team: "PHX", tip_off: "2026-11-02T21:00Z", completed: false, rebuilt: false, prediction: { home_win_probability: 0.55 } },
+    { game_id: "a4", home_team: "LAL", away_team: "GSW", tip_off: "2026-11-04T21:00Z", completed: false, rebuilt: false, prediction: { home_win_probability: 0.52 } },
+    { game_id: "a5", home_team: "CHI", away_team: "MIL", tip_off: "2026-11-05T21:00Z", completed: false, rebuilt: false, prediction: { home_win_probability: 0.51 } },
+    { game_id: "a6", home_team: "DAL", away_team: "HOU", tip_off: "2026-11-01T19:00Z", completed: true, rebuilt: false, prediction: { home_win_probability: 0.9 } },
+  ];
+  const calls = [];
+  const get = async (path) => {
+    calls.push(path);
+    if (path.startsWith("/nba/games/week")) return games;
+    if (path.includes("/players")) return [{ player_id: 1, player_name: "P", team: "ORL", stat: "points", predicted_value: 10 }];
+    return [];
+  };
+  const st = await loadSport("nba", get, { players: false });
+  calls.length = 0;
+  await loadPlayers("nba", get, st);
+  const fetched = calls.filter((p) => p.includes("/players")).map((p) => p.split("/")[3]);
+  assert.deepEqual(fetched, ["a1", "a2", "a3", "a4"]);
+});
+
+test("cached players ride forward over a picks-only reload until Wave B replaces them", () => {
+  // Claude's #189 fix: Wave A replaces the cached state wholesale,
+  // which dropped PL's player cards on every visit -- and for good
+  // when Wave B failed. The previous state's players carry forward
+  // whenever the fresh picks load brings none of its own.
+  const cached = { sport: "pl", matches: [], players: { fx1: [{ name: "Saka" }] } };
+  const fresh = { sport: "pl", matches: [], players: {} };
+  assert.equal(carryPlayers(cached, fresh).players.fx1[0].name, "Saka");
+  const withOwn = { sport: "pl", matches: [], players: { fx9: [{ name: "New" }] } };
+  assert.deepEqual(carryPlayers(cached, withOwn).players, { fx9: [{ name: "New" }] });
+  const failedPrev = { sport: "pl", failed: true, matches: [], players: {} };
+  assert.deepEqual(carryPlayers(failedPrev, { sport: "pl", matches: [], players: {} }).players, {});
 });
