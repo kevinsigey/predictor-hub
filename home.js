@@ -205,10 +205,19 @@ export function normalizePL({ gw, playersByFixture, table } = {}) {
       final: null,
     };
   });
+  const players = plPlayers(matches, playersByFixture);
+  const tableRows = Array.isArray(table) ? table : table?.table || [];
+  return { sport: "pl", gameweek: gw?.gameweek ?? gw?.current_gameweek ?? null, matches, players, table: tableRows };
+}
+
+/** PL scorer rows from per-fixture player payloads, keyed by fixture id.
+ *  Split out of normalizePL so the deferred players load (Wave B) builds
+ *  exactly the map the full load builds. */
+export function plPlayers(matches, playersByFixture) {
   const players = {};
   for (const [id, payload] of Object.entries(playersByFixture || {})) {
     if (!payload) continue;
-    const fx = matches.find((m) => String(m.id) === String(id));
+    const fx = (matches || []).find((m) => String(m.id) === String(id));
     const rows = [
       ...(payload.home_players || []).map((p) => ({ ...p, team: fx?.homeName || "" })),
       ...(payload.away_players || []).map((p) => ({ ...p, team: fx?.awayName || "" })),
@@ -217,8 +226,7 @@ export function normalizePL({ gw, playersByFixture, table } = {}) {
       .sort((a, b) => b.anytime_goal_prob - a.anytime_goal_prob);
     if (rows.length) players[id] = rows;
   }
-  const tableRows = Array.isArray(table) ? table : table?.table || [];
-  return { sport: "pl", gameweek: gw?.gameweek ?? gw?.current_gameweek ?? null, matches, players, table: tableRows };
+  return players;
 }
 
 export function normalizeFootball(sport, { week, games, preds, props } = {}) {
@@ -297,6 +305,20 @@ export function normalizeNBA({ games, playersByGame, rankings } = {}) {
     .filter(Boolean)
     .sort((a, b) => new Date(a.start) - new Date(b.start));
   // Player rows arrive one per player per stat; pivot on player_id.
+  const players = nbaPlayers(playersByGame);
+  // The players fan-out's address set, kept from the raw payload: the
+  // first four uncompleted games in payload order, prediction or not.
+  // The normalized matches above are a different set (predicted only,
+  // sorted by tip), and the deferred load must fetch the old one
+  // (Claude's #189 fix).
+  const playerGameIds = (games || []).filter((g) => !g.completed).slice(0, 4).map((g) => g.game_id);
+  return { sport: "nba", matches, players, rankings: rankings || [], playerGameIds };
+}
+
+/** NBA player rows pivoted per game. Split out of normalizeNBA so the
+ *  deferred players load (Wave B) builds exactly the map the full
+ *  load builds. */
+export function nbaPlayers(playersByGame) {
   const players = {};
   for (const [gameId, rows] of Object.entries(playersByGame || {})) {
     if (!Array.isArray(rows)) continue;
@@ -310,7 +332,7 @@ export function normalizeNBA({ games, playersByGame, rankings } = {}) {
     const list = [...byPlayer.values()].filter((p) => Number.isFinite(p.points)).sort((a, b) => b.points - a.points);
     if (list.length) players[gameId] = list;
   }
-  return { sport: "nba", matches, players, rankings: rankings || [] };
+  return players;
 }
 
 const isPreEvent = (source) => source === "tracked" || source === "live";
@@ -514,73 +536,57 @@ export function matchCard(sport, m, { view = "all", tag = "Match", wide = false,
   };
 }
 
-/** The model-vs-market card. Exists only when a candidate carries a real
- *  market line; `bestGap` returns null when none does, and no card is
- *  built — an absent edge renders nothing, because a placeholder would
- *  read as a claim. */
-export function bestGap(states) {
+/** The consensus card: the most confident call, made before kickoff,
+ *  that AGREES with the market. It replaces the old biggest-gap card
+ *  (removed 2026-11-17): the paper ledger's record is that the model's
+ *  largest disagreements with the market are its worst calls — CFB
+ *  spread dogs priced 15+ points from the model hit 25% against a 37%
+ *  price — so the lead card no longer promotes the weakest signal on
+ *  the board. Agreement is read off the spread line: `lineHome` is
+ *  points the home team is favoured by, so the market's favourite is
+ *  home when it is positive and away when negative, and the model's
+ *  pick must be that side. A sport whose matches carry no line (PL)
+ *  cannot be judged for agreement and never supplies this card.
+ *  `exclude` is the hero's {sport, m}: the same game is never shown
+ *  twice in a row. Returns null when nothing qualifies — an absent
+ *  card renders nothing, because a placeholder would read as a claim. */
+export function bestConsensus(states, exclude = null) {
   let best = null;
-  const consider = (sport, m, kind, model, line) => {
-    if (!Number.isFinite(model) || !Number.isFinite(line)) return;
-    const gap = Math.abs(model - line);
-    if (!best || gap > best.gap) best = { sport, m, kind, model, line, gap };
-  };
   for (const st of Object.values(states || {})) {
     if (!st || st.failed) continue;
     for (const m of st.matches || []) {
       if (m.late) continue;
-      if (st.sport === "nba") {
-        consider("nba", m, "total", m.total, m.marketTotal);
-        if (Number.isFinite(m.margin) && Number.isFinite(m.lineHome)) consider("nba", m, "spread", m.margin, m.lineHome);
-      } else if (st.sport === "nfl" || st.sport === "cfb") {
-        consider(st.sport, m, "total", m.total, m.marketTotal);
-        if (Number.isFinite(m.margin) && Number.isFinite(m.lineHome)) consider(st.sport, m, "spread", m.margin, m.lineHome);
-      }
+      if (exclude && st.sport === exclude.sport && m === exclude.m) continue;
+      if (!Number.isFinite(m.lineHome) || m.lineHome === 0) continue;
+      const marketSide = m.lineHome > 0 ? "home" : "away";
+      if (m.pickSide !== marketSide) continue;
+      if (!best || m.pickProb > best.m.pickProb) best = { sport: st.sport, m, line: m.lineHome };
     }
   }
-  return best && best.gap >= 1 ? best : null;
+  return best;
 }
 
-export function gapCard(g) {
-  const meta = SPORTS_META[g.sport];
-  const matchup = `${g.m.awayName} @ ${g.m.homeName}`;
-  if (g.kind === "total") {
-    const scale = Math.max(g.model, g.line) * 1.15 || 1;
-    const over = g.model >= g.line;
-    return {
-      sport: g.sport,
-      view: "all",
-      kind: "gap",
-      tag: `${meta.short} · Total`,
-      time: "",
-      startISO: g.m.start,
-      title: `${matchup} — points total`,
-      big: num1(g.model),
-      lab: [`projected total`, `market ${num1(g.line)}`],
-      meter: { fill: (g.model / scale) * 100, mark: (g.line / scale) * 100 },
-      legend: [`Model ${num1(g.model)}`, `${signed1(g.model - g.line)} ${over ? "over" : "under"} lean`, `Market ${num1(g.line)}`],
-      pills: [
-        { t: `${over ? "Over" : "Under"} lean ${signed1(g.model - g.line)}`, cls: "lean" },
-        { t: `Pick: ${pickName(g.m)} ${pct(g.m.pickProb)}`, cls: "yes" },
-      ],
-      foot: "Biggest model-vs-market gap on the board",
-    };
-  }
+export function consensusCard(c) {
+  const meta = SPORTS_META[c.sport];
+  const matchup = `${c.m.awayName} @ ${c.m.homeName}`;
+  const favoured = c.line > 0 ? c.m.home : c.m.away;
   return {
-    sport: g.sport,
+    sport: c.sport,
     view: "all",
-    kind: "gap",
-    tag: `${meta.short} · Spread`,
+    kind: "consensus",
+    tag: `${meta.short} · Consensus`,
     time: "",
-    startISO: g.m.start,
-    title: `${matchup} — the spread`,
-    big: signed1(g.model - g.line),
-    lab: [
-      `model makes it ${lineText(g.m.home, g.model) || `${g.m.homeName} by ${num1(Math.abs(g.model))}`}`,
-      `market line ${lineText(g.m.home, g.line)}`,
+    startISO: c.m.start,
+    title: `${matchup} — model and market agree`,
+    big: pct(c.m.pickProb),
+    lab: [`${pickName(c.m)} to win`, `market line ${lineText(favoured, Math.abs(c.line))}`],
+    meter: { fill: c.m.pickProb * 100, mark: 50 },
+    legend: [`Model ${pct(c.m.pickProb)}`, `Market ${lineText(favoured, Math.abs(c.line))}`],
+    pills: [
+      { t: `Pick: ${pickName(c.m)} ${pct(c.m.pickProb)}`, cls: "yes" },
+      { t: `Market agrees`, cls: "lean" },
     ],
-    legend: [`Model margin ${signed1(g.model)}`, `Market ${signed1(g.line)}`],
-    foot: "Biggest model-vs-market gap on the board",
+    foot: "Most confident call the market agrees with",
   };
 }
 
@@ -590,10 +596,10 @@ export function barsCard(sport, { view, tag, time = "", title, rows, foot }) {
 }
 
 /** The All board. Predictions only — no performance, no records: those
- *  live in the decks. Curation order is the mockup's: hero, the gap, one
- *  marquee per sport, then the player stories. A sport with nothing
- *  upcoming contributes nothing rather than a placeholder. */
-export function buildAllCards(states, now = new Date()) {
+ *  live in the decks. Curation order is the mockup's: hero, the
+ *  consensus, one marquee per sport, then the player stories. A sport
+ *  with nothing upcoming contributes nothing rather than a placeholder. */
+export function buildAllCards(states, now = new Date(), { settled = true } = {}) {
   const cards = [];
   const usable = SPORT_ORDER.map((s) => states?.[s]).filter((st) => st && !st.failed);
   // The hero: the most confident match pick across the head-to-head
@@ -606,9 +612,14 @@ export function buildAllCards(states, now = new Date()) {
       if (!hero || m.pickProb > hero.m.pickProb) hero = { sport: st.sport, m };
     }
   }
-  const gap = bestGap(states);
-  if (hero) cards.push(matchCard(hero.sport, hero.m, { view: "all", wide: true, hero: true }));
-  if (gap) cards.push(gapCard(gap));
+  const consensus = bestConsensus(states, hero);
+  // Hero and consensus are board-wide verdicts: painted from a
+  // partial board they swap as the remaining sports land, so both
+  // wait until every sport has settled (Claude's #189 fix). The hero
+  // is still computed — the marquee below dedupes against it — it is
+  // simply not crowned yet.
+  if (settled && hero) cards.push(matchCard(hero.sport, hero.m, { view: "all", wide: true, hero: true }));
+  if (settled && consensus) cards.push(consensusCard(consensus));
 
   const todayStr = ctDay(now);
   const marqueeOf = (st) => {
@@ -1030,7 +1041,7 @@ export function buildDeckCards(sport, st, record, nbaCal, excludeIds) {
  *  events today, the most confident call, the biggest gap, the first
  *  event, and how many models answered. A chip that cannot be computed is
  *  omitted — never estimated. */
-export function buildKpis(states, now = new Date()) {
+export function buildKpis(states, now = new Date(), { settled = true } = {}) {
   const kpis = [];
   const todayStr = ctDay(now);
   let eventsToday = 0;
@@ -1061,9 +1072,12 @@ export function buildKpis(states, now = new Date()) {
       if (!hero || m.pickProb > hero.m.pickProb) hero = { sport: st.sport, m };
     }
   }
-  if (hero) kpis.push({ b: pct(hero.m.pickProb), t: `most confident call · ${pickName(hero.m)}` });
-  const gap = bestGap(states);
-  if (gap) kpis.push({ b: signed1(gap.model - gap.line), t: `biggest model-vs-market gap · ${gap.m.away} @ ${gap.m.home} ${gap.kind}` });
+  // The hero and consensus chips are board-wide verdicts, held until
+  // every sport has settled, exactly like their cards (Claude's #189
+  // fix).
+  if (settled && hero) kpis.push({ b: pct(hero.m.pickProb), t: `most confident call · ${pickName(hero.m)}` });
+  const consensus = bestConsensus(states, hero);
+  if (settled && consensus) kpis.push({ b: pct(consensus.m.pickProb), t: `model and market agree · ${consensus.m.away} @ ${consensus.m.home}` });
   if (first) kpis.push({ b: fmtTime(first.d.toISOString()), t: "first event today" });
   kpis.push({ b: String(live), t: live === 5 ? "models live" : "of 5 models live" });
   return kpis;
@@ -1379,16 +1393,18 @@ function makeGetters(store) {
   return { netGet, cacheGet };
 }
 
-async function loadPL(get) {
+async function loadPL(get, { players = true } = {}) {
   const [gw, table] = await Promise.all([get("/pl/api/fixtures/gameweek"), settle(get("/pl/api/hub/table"))]);
-  const upcoming = (gw?.fixtures || []).filter((f) => !f.finished).slice(0, 2);
   const playersByFixture = {};
-  await Promise.all(
-    upcoming.map(async (f) => {
-      const r = await settle(get(`/pl/api/fixtures/${encodeURIComponent(f.event_id)}/players`));
-      if (r.ok) playersByFixture[f.event_id] = r.v;
-    }),
-  );
+  if (players) {
+    const upcoming = (gw?.fixtures || []).filter((f) => !f.finished).slice(0, 2);
+    await Promise.all(
+      upcoming.map(async (f) => {
+        const r = await settle(get(`/pl/api/fixtures/${encodeURIComponent(f.event_id)}/players`));
+        if (r.ok) playersByFixture[f.event_id] = r.v;
+      }),
+    );
+  }
   return normalizePL({ gw, playersByFixture, table: table.ok ? table.v : null });
 }
 
@@ -1403,18 +1419,21 @@ async function loadFootball(sport, get) {
   return normalizeFootball(sport, { week, games, preds, props: props.ok ? props.v : [] });
 }
 
-async function loadNBA(get) {
+async function loadNBA(get, { players = true } = {}) {
   const today = new Date().toISOString().slice(0, 10);
+  const rankingsP = settle(get("/nba/hub/rankings"));
   const games = await get(`/nba/games/week?start=${today}`);
-  const upcoming = (Array.isArray(games) ? games : []).filter((g) => !g.completed).slice(0, 4);
   const playersByGame = {};
-  await Promise.all(
-    upcoming.map(async (g) => {
-      const r = await settle(get(`/nba/games/${encodeURIComponent(g.game_id)}/players`));
-      if (r.ok) playersByGame[g.game_id] = r.v;
-    }),
-  );
-  const rankings = await settle(get("/nba/hub/rankings"));
+  if (players) {
+    const upcoming = (Array.isArray(games) ? games : []).filter((g) => !g.completed).slice(0, 4);
+    await Promise.all(
+      upcoming.map(async (g) => {
+        const r = await settle(get(`/nba/games/${encodeURIComponent(g.game_id)}/players`));
+        if (r.ok) playersByGame[g.game_id] = r.v;
+      }),
+    );
+  }
+  const rankings = await rankingsP;
   return normalizeNBA({ games, playersByGame, rankings: rankings.ok ? rankings.v : [] });
 }
 
@@ -1429,11 +1448,60 @@ async function loadF1(get) {
   return normalizeF1({ races, pred });
 }
 
-function loadSport(sport, get) {
-  if (sport === "pl") return loadPL(get);
+export function loadSport(sport, get, opts) {
+  if (sport === "pl") return loadPL(get, opts);
   if (sport === "nfl" || sport === "cfb") return loadFootball(sport, get);
-  if (sport === "nba") return loadNBA(get);
+  if (sport === "nba") return loadNBA(get, opts);
   return loadF1(get);
+}
+
+/** The deferred players load for one already-loaded sport: the same
+ *  per-fixture / per-game fan-out the full load runs, over the same
+ *  caps (PL's next two fixtures, NBA's next four games), returning the
+ *  pivoted players map for `state.sports[sport].players`. Only PL and
+ *  NBA fan out per game; football's props are one batch call already
+ *  in its picks load, and F1 has no player payloads. */
+export async function loadPlayers(sport, get, st) {
+  if (!st || st.failed) return {};
+  if (sport === "pl") {
+    const byFixture = {};
+    await Promise.all(
+      (st.matches || []).slice(0, 2).map(async (m) => {
+        const r = await settle(get(`/pl/api/fixtures/${encodeURIComponent(m.id)}/players`));
+        if (r.ok) byFixture[m.id] = r.v;
+      }),
+    );
+    return plPlayers(st.matches, byFixture);
+  }
+  if (sport === "nba") {
+    const ids = st.playerGameIds?.length
+      ? st.playerGameIds
+      : (st.matches || []).slice(0, 4).map((m) => m.id);
+    const byGame = {};
+    await Promise.all(
+      ids.map(async (id) => {
+        const r = await settle(get(`/nba/games/${encodeURIComponent(id)}/players`));
+        if (r.ok) byGame[id] = r.v;
+      }),
+    );
+    return nbaPlayers(byGame);
+  }
+  return {};
+}
+
+/** Wave A replaces a sport's state with a picks-only load, whose
+ *  players are empty by construction. When the previous state (the
+ *  cache paint, usually) carries players and the fresh one brings
+ *  none, the old players ride forward until Wave B replaces them —
+ *  a returning visit must not lose the player cards it painted, and
+ *  must not lose them for good when Wave B fails (Claude's #189
+ *  fix). Football's props ride its picks load itself, so its fresh
+ *  players are real and never overridden here. */
+export function carryPlayers(prev, fresh) {
+  if (!prev || prev.failed || !fresh || fresh.failed) return fresh;
+  const empty = (p) => (Array.isArray(p) ? p.length === 0 : !p || !Object.keys(p).length);
+  if (empty(fresh.players) && !empty(prev.players)) fresh.players = prev.players;
+  return fresh;
 }
 
 const RECORD_PATHS = {
@@ -1470,8 +1538,8 @@ const sigOf = (x) => {
   }
 };
 
-function allCards() {
-  return buildAllCards(state.sports);
+function allCards(opts) {
+  return buildAllCards(state.sports, new Date(), opts);
 }
 
 function usedMatchIds(sport, cards) {
@@ -1519,12 +1587,16 @@ function render({ reconcile = false } = {}) {
   const headBox = document.querySelector("#deckhead");
   const kpisBox = document.querySelector("#kpis");
   if (!grid) return;
-  const cards = allCards();
+  // Settled = every sport has landed, one way or the other. Until
+  // then the board-wide verdicts (hero, consensus, their KPI chips)
+  // are held, so they never swap mid-load (Claude's #189 fix).
+  const settled = SPORT_ORDER.every((s) => state.sports[s]);
+  const cards = allCards({ settled });
   // KPIs belong to the All board; a filtered deck keeps its own header.
   // The strip only repaints when its content actually changed, so a
   // background patch never reflows it under the reader.
   if (kpisBox) {
-    const kpis = state.filter === "all" ? buildKpis(state.sports, now) : [];
+    const kpis = state.filter === "all" ? buildKpis(state.sports, now, { settled }) : [];
     const ksig = sigOf(kpis);
     if (ksig !== painted.kpiSig) {
       painted.kpiSig = ksig;
@@ -1547,7 +1619,12 @@ function render({ reconcile = false } = {}) {
     const sport = state.filter;
     const st = state.sports[sport];
     head = st && !st.failed ? deckHead(sport, st, state.records[sport]) : null;
-    if (!st || st.failed) {
+    if (!st) {
+      // No state yet is not a failure — the sport simply has not
+      // landed. A filtered deck shows a loading state instead of
+      // flashing "Couldn't load picks." (Claude's #189 fix).
+      items = [{ key: "__loading__", hash: "loading", paint: () => el("p", "empty-note", "Loading picks…") }];
+    } else if (st.failed) {
       const empty = {
         sport,
         kind: "empty",
@@ -1636,6 +1713,7 @@ async function boot() {
   const cal0 = await settle(cacheGet("/nba/calibration"));
   if (cal0.ok) state.nbaCal = normalizeNBAcalibration(cal0.v);
   if (cachePainted) render();
+  let painted = cachePainted;
 
   // Wave A — the picks, revalidated sport by sport. A sport with a
   // snapshot-meta whose generated_at still matches the cached one is
@@ -1669,24 +1747,40 @@ async function boot() {
       }
       const before = sigOf(state.sports[sport]);
       try {
-        state.sports[sport] = await loadSport(sport, netGet);
+        // Picks only — the per-game player fan-out is deferred to
+        // Wave B. First paint used to wait for every sport's FULL
+        // load (five loaders, two tiers each, the slowest sport
+        // gating the whole board), which is why a cold visit showed
+        // no picks for seconds. Now the first sport to land paints
+        // and the rest patch in as they arrive, the same patching
+        // the cache path already used.
+        const freshLoad = await loadSport(sport, netGet, { players: false });
+        state.sports[sport] = carryPlayers(state.sports[sport], freshLoad);
       } catch (err) {
         if (!state.sports[sport]) {
           state.sports[sport] = { sport, failed: true, matches: [], players: {} };
         }
         console.warn(`hub home ${sport} failed`, err);
       }
-      if (cachePainted && sigOf(state.sports[sport]) !== before) patchSport(sport);
+      if (!painted) {
+        render();
+        painted = true;
+      } else if (sigOf(state.sports[sport]) !== before) patchSport(sport);
     }),
   );
-  if (!cachePainted) render();
+  if (!painted) {
+    render();
+    painted = true;
+  }
 
-  // Wave B — the records and the NBA calibration curve. They only feed
-  // deck headers and performance cards, so they must never delay the
-  // board — the NBA track record in particular ships every per-pick
-  // row it has (and so is never cached; see the size cap). A sport
-  // whose snapshot verified unchanged in Wave A keeps its cached
-  // record, when it has one; anything else fetches fresh and patches.
+  // Wave B — the records, the NBA calibration curve, and the deferred
+  // player payloads. They only feed deck headers, performance cards
+  // and the player stories, so they must never delay the board — the
+  // NBA track record in particular ships every per-pick row it has
+  // (and so is never cached; see the size cap). A sport whose snapshot
+  // verified unchanged in Wave A keeps its cached record — and its
+  // cached players — when it has them; anything else fetches fresh
+  // and patches.
   await Promise.all([
     ...SPORT_ORDER.map(async (sport) => {
       if (metaVerified[sport] && state.records[sport]) return;
@@ -1694,7 +1788,17 @@ async function boot() {
       const r = await settle(loadRecord(sport, netGet));
       if (r.ok && r.v) {
         state.records[sport] = r.v;
-        if (cachePainted && sigOf(r.v) !== before) patchSport(sport);
+        if (painted && sigOf(r.v) !== before) patchSport(sport);
+      }
+    }),
+    ...SPORT_ORDER.map(async (sport) => {
+      if (metaVerified[sport]) return;
+      const st = state.sports[sport];
+      if (!st || st.failed) return;
+      const r = await settle(loadPlayers(sport, netGet, st));
+      if (r.ok && r.v && Object.keys(r.v).length) {
+        st.players = r.v;
+        if (painted) patchSport(sport);
       }
     }),
     (async () => {
@@ -1704,12 +1808,12 @@ async function boot() {
         const cal = normalizeNBAcalibration(r.v);
         if (sigOf(cal) !== sigOf(state.nbaCal)) {
           state.nbaCal = cal;
-          if (cachePainted) patchSport("nba");
+          if (painted) patchSport("nba");
         }
       }
     })(),
   ]);
-  if (!cachePainted) render();
+  if (!painted) render();
 }
 
 // Guarded so the Node test suite can import the pure builders without a

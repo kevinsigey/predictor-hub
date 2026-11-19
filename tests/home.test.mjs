@@ -9,8 +9,13 @@ import {
   normalizeNBA,
   normalizeF1,
   normalizeRecord,
-  bestGap,
+  bestConsensus,
+  consensusCard,
+  loadSport,
+  loadPlayers,
+  carryPlayers,
   buildAllCards,
+  buildKpis,
   buildDeckCards,
   deckHead,
   sparkPoints,
@@ -82,7 +87,7 @@ test("the All board leads with the most confident pick as a notched hero, and ca
   for (const c of cards) assert.ok(!["buckets", "calib", "spark"].includes(c.kind), `performance card on All board: ${c.kind}`);
 });
 
-test("the gap card exists only behind a real line, and takes the biggest gap", () => {
+test("the consensus card takes the most confident call the market agrees with", () => {
   const nfl = normalizeFootball("nfl", { week: nflWeek, games: nflGames, preds: nflPreds, props: [] });
   const nba = normalizeNBA({
     games: [
@@ -94,11 +99,38 @@ test("the gap card exists only behind a real line, and takes the biggest gap", (
     playersByGame: {},
     rankings: [],
   });
-  const gap = bestGap({ nfl, nba });
-  assert.equal(gap.sport, "nba");
-  assert.equal(gap.kind, "total");
-  assert.ok(Math.abs(gap.gap - 5.26) < 0.01);
-  // Strip the market lines and the card must cease to exist.
+  // CIN is favoured by 12.5 and the model has them at 84.8%: agreement,
+  // and the most confident agreement on the board. (The old biggest-gap
+  // card took the NBA total here — a 5.3-point disagreement, exactly the
+  // kind of call the ledger record says is the model's weakest.)
+  const consensus = bestConsensus({ nfl, nba });
+  assert.equal(consensus.sport, "nfl");
+  assert.equal(consensus.m.home, "CIN");
+  assert.equal(consensus.m.pickProb, 0.848);
+  // Excluding the hero's game moves to the next agreement (BUF, 70.6%).
+  const next = bestConsensus({ nfl, nba }, { sport: "nfl", m: nfl.matches[0] });
+  assert.equal(next.m.home, "BUF");
+  // The card itself: a consensus, never a gap.
+  const card = consensusCard(consensus);
+  assert.equal(card.kind, "consensus");
+  assert.match(card.foot, /market agrees/);
+});
+
+test("a confident call the market disagrees with is not a consensus", () => {
+  // The model loves the home team (90%) but the book has them as a
+  // 10-point dog: the biggest-gap shape, and not eligible.
+  const nba = normalizeNBA({
+    games: [
+      {
+        game_id: "n9", home_team: "GSW", away_team: "LAC", tip_off: "2026-11-02T00:30Z", completed: false, rebuilt: false,
+        prediction: { home_win_probability: 0.90, predicted_margin: 6.5, predicted_total: 219.78, market_point: 10, market_total_point: 220 },
+      },
+    ],
+    playersByGame: {},
+    rankings: [],
+  });
+  assert.equal(bestConsensus({ nba }), null);
+  // Strip the market lines and there is nothing to agree with either.
   const noLines = normalizeNBA({
     games: [
       {
@@ -109,7 +141,54 @@ test("the gap card exists only behind a real line, and takes the biggest gap", (
     playersByGame: {},
     rankings: [],
   });
-  assert.equal(bestGap({ nba: noLines }), null);
+  assert.equal(bestConsensus({ nba: noLines }), null);
+});
+
+test("the picks load defers the player fan-out, which lands separately", async () => {
+  const calls = [];
+  const nbaGet = async (path) => {
+    calls.push(path);
+    if (path.startsWith("/nba/games/week")) {
+      return [
+        {
+          game_id: "n1", home_team: "ORL", away_team: "BOS", tip_off: "2026-11-01T20:30Z", completed: false, rebuilt: false,
+          prediction: { home_win_probability: 0.4216, predicted_margin: -2.68, predicted_total: 228.76, market_point: 6.5, market_total_point: 223.5 },
+        },
+      ];
+    }
+    if (path.includes("/players")) {
+      return [{ player_id: 7, player_name: "J.Brown", team: "BOS", stat: "points", predicted_value: 24.5 }];
+    }
+    return [];
+  };
+  const st = await loadSport("nba", nbaGet, { players: false });
+  assert.equal(st.matches.length, 1);
+  assert.deepEqual(st.players, {});
+  assert.ok(!calls.some((p) => p.includes("/players")), `players fetched on the picks path: ${calls}`);
+  const players = await loadPlayers("nba", nbaGet, st);
+  assert.equal(players.n1[0].name, "J.Brown");
+  assert.equal(players.n1[0].points, 24.5);
+
+  const plCalls = [];
+  const plGet = async (path) => {
+    plCalls.push(path);
+    if (path.includes("gameweek")) {
+      return {
+        gameweek: 12,
+        fixtures: [
+          { event_id: "fx1", team_home: "Arsenal", team_away: "Chelsea", commence_time: "2026-11-01T17:30:00Z", finished: false, predicted_home_win: 0.55, predicted_draw: 0.25, predicted_away_win: 0.20, made_before_kickoff: true },
+        ],
+      };
+    }
+    if (path.includes("/players")) return { home_players: [{ name: "Saka", anytime_goal_prob: 0.41 }], away_players: [] };
+    return [];
+  };
+  const pl = await loadSport("pl", plGet, { players: false });
+  assert.equal(pl.matches.length, 1);
+  assert.ok(!plCalls.some((p) => p.includes("/players")), `players fetched on the picks path: ${plCalls}`);
+  const plPlayersMap = await loadPlayers("pl", plGet, pl);
+  assert.equal(plPlayersMap.fx1[0].anytime_goal_prob, 0.41);
+  assert.equal(plPlayersMap.fx1[0].team, "Arsenal");
 });
 
 test("a rebuilt NBA game is labelled late and never curated", () => {
@@ -284,4 +363,66 @@ test("spark and calibration points stay inside their plots", () => {
   }
   assert.equal(calibPoints([{ predicted: 0.5, actual: 0.5, n: 3 }]), ""); // one point is not a line
   assert.equal(calibPoints([{ predicted: 0.2, actual: 0.6, n: 10 }, { predicted: 0.8, actual: 0.2, n: 10 }]), "20,25.6 80,51.2");
+});
+
+test("an unsettled board holds its hero and consensus until every sport lands", () => {
+  // Claude's #189 fix: render fires when the FIRST sport lands, and a
+  // hero or consensus crowned from a partial board swaps as the rest
+  // arrive. The builders hold both until the board has settled; the
+  // marquee still shows the game, uncrowned.
+  const nfl = normalizeFootball("nfl", { week: nflWeek, games: nflGames, preds: nflPreds, props: nflProps });
+  const now = new Date("2026-11-01T12:00:00Z");
+  const early = buildAllCards({ nfl }, now, { settled: false });
+  assert.ok(!early.some((c) => c.notch), "hero painted from a partial board");
+  assert.ok(!early.some((c) => c.kind === "consensus"), "consensus painted from a partial board");
+  assert.ok(early.some((c) => c.kind === "match"), "marquee lost while unsettled");
+  const done = buildAllCards({ nfl }, now, { settled: true });
+  assert.equal(done[0].notch, true);
+  assert.ok(done.some((c) => c.kind === "consensus"));
+  const kpisEarly = buildKpis({ nfl }, now, { settled: false });
+  assert.ok(!kpisEarly.some((k) => /most confident call|model and market agree/.test(k.t)));
+  const kpisDone = buildKpis({ nfl }, now, { settled: true });
+  assert.ok(kpisDone.some((k) => /most confident call/.test(k.t)));
+});
+
+test("the NBA players fan-out keeps the pre-deferral set", async () => {
+  // Before the deferral, loadNBA fetched players for the first four
+  // uncompleted games in payload order -- including games with no
+  // prediction. The normalized matches (predicted only, sorted by
+  // tip) are a different set; loadPlayers must keep the old one
+  // (Claude's #189 fix).
+  const games = [
+    { game_id: "a1", home_team: "ORL", away_team: "BOS", tip_off: "2026-11-03T20:30Z", completed: false, rebuilt: false, prediction: { home_win_probability: 0.6 } },
+    { game_id: "a2", home_team: "NYK", away_team: "MIA", tip_off: "2026-11-01T18:00Z", completed: false, rebuilt: false },
+    { game_id: "a3", home_team: "DEN", away_team: "PHX", tip_off: "2026-11-02T21:00Z", completed: false, rebuilt: false, prediction: { home_win_probability: 0.55 } },
+    { game_id: "a4", home_team: "LAL", away_team: "GSW", tip_off: "2026-11-04T21:00Z", completed: false, rebuilt: false, prediction: { home_win_probability: 0.52 } },
+    { game_id: "a5", home_team: "CHI", away_team: "MIL", tip_off: "2026-11-05T21:00Z", completed: false, rebuilt: false, prediction: { home_win_probability: 0.51 } },
+    { game_id: "a6", home_team: "DAL", away_team: "HOU", tip_off: "2026-11-01T19:00Z", completed: true, rebuilt: false, prediction: { home_win_probability: 0.9 } },
+  ];
+  const calls = [];
+  const get = async (path) => {
+    calls.push(path);
+    if (path.startsWith("/nba/games/week")) return games;
+    if (path.includes("/players")) return [{ player_id: 1, player_name: "P", team: "ORL", stat: "points", predicted_value: 10 }];
+    return [];
+  };
+  const st = await loadSport("nba", get, { players: false });
+  calls.length = 0;
+  await loadPlayers("nba", get, st);
+  const fetched = calls.filter((p) => p.includes("/players")).map((p) => p.split("/")[3]);
+  assert.deepEqual(fetched, ["a1", "a2", "a3", "a4"]);
+});
+
+test("cached players ride forward over a picks-only reload until Wave B replaces them", () => {
+  // Claude's #189 fix: Wave A replaces the cached state wholesale,
+  // which dropped PL's player cards on every visit -- and for good
+  // when Wave B failed. The previous state's players carry forward
+  // whenever the fresh picks load brings none of its own.
+  const cached = { sport: "pl", matches: [], players: { fx1: [{ name: "Saka" }] } };
+  const fresh = { sport: "pl", matches: [], players: {} };
+  assert.equal(carryPlayers(cached, fresh).players.fx1[0].name, "Saka");
+  const withOwn = { sport: "pl", matches: [], players: { fx9: [{ name: "New" }] } };
+  assert.deepEqual(carryPlayers(cached, withOwn).players, { fx9: [{ name: "New" }] });
+  const failedPrev = { sport: "pl", failed: true, matches: [], players: {} };
+  assert.deepEqual(carryPlayers(failedPrev, { sport: "pl", matches: [], players: {} }).players, {});
 });
