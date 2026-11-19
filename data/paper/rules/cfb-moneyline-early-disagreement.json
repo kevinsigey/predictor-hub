@@ -13,7 +13,7 @@
   },
   "metric": "Net cents per contract: payout (100 if the side bought wins, else 0) minus the ask paid minus the Kalshi taker fee on one contract (paper/fees.py), settled trades only, clustered by game.",
   "written_at": "2026-11-18T07:00:00Z",
-  "prereg_at": "2026-11-19T00:00:00Z",
+  "prereg_at": "2026-11-19T05:00:00Z",
   "promotion": {
     "min_n": 150,
     "test": "report.promotion_test: n >= 150 settled trades AND game-clustered low95 of net c/contract > 0 AND paired low95 > 0 against the live model's settled cfb:moneyline candidate rows on the same games (0 where the live model did not bet). Passing makes the rule 'eligible' only; promotion to live needs Kevin's approval."
