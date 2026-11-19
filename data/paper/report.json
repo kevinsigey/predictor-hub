@@ -1,10 +1,10 @@
 {
   "fills": {
-    "fill_rate": 0.9671,
-    "n_depth_known": 304,
+    "fill_rate": 0.9675,
+    "n_depth_known": 308,
     "n_fill_short": 10,
-    "n_fill_unobserved": 4944,
-    "n_rows": 4944,
+    "n_fill_unobserved": 4948,
+    "n_rows": 4948,
     "set_aside": {
       "fill_short": {
         "n": 10,
@@ -605,8 +605,8 @@
       ]
     },
     "nba:total:0.50-0.60": {
-      "all_time_n": 314,
-      "current_model_n": 7,
+      "all_time_n": 315,
+      "current_model_n": 8,
       "fingerprints": [
         "v20261020230522",
         "v20261021140946",
@@ -640,8 +640,8 @@
       ]
     },
     "nba:total:0.60-0.70": {
-      "all_time_n": 303,
-      "current_model_n": 6,
+      "all_time_n": 305,
+      "current_model_n": 8,
       "fingerprints": [
         "v20261020230522",
         "v20261021140946",
@@ -805,8 +805,8 @@
       ]
     },
     "nfl:total:0.60-0.70": {
-      "all_time_n": 60,
-      "current_model_n": 60,
+      "all_time_n": 61,
+      "current_model_n": 61,
       "fingerprints": [
         null
       ]
@@ -898,6 +898,20 @@
   },
   "per_sport": {
     "cfb": {
+      "by_side": {
+        "no": {
+          "hit_rate": null,
+          "n": 172,
+          "n_settled": 0,
+          "net_cents_per_contract": null
+        },
+        "yes": {
+          "hit_rate": 0.4615,
+          "n": 1684,
+          "n_settled": 1495,
+          "net_cents_per_contract": -7.0569
+        }
+      },
       "clv_bets_to_resolve": 0,
       "clv_ci95": [
         -0.2273,
@@ -936,9 +950,23 @@
       "why_not_yet": "superseded by a newer model; a fresh sample is required; pnl interval [-0.4600, -0.3400] is entirely below zero; pnl interval [-0.0656, 0.4019] includes zero; calibration gap widening (12.16 -> 12.38 pts)"
     },
     "f1": {
-      "clv_bets_to_resolve": 376,
+      "by_side": {
+        "no": {
+          "hit_rate": 0.4915,
+          "n": 78,
+          "n_settled": 59,
+          "net_cents_per_contract": 0.3729
+        },
+        "yes": {
+          "hit_rate": 0.119,
+          "n": 53,
+          "n_settled": 42,
+          "net_cents_per_contract": -3.5714
+        }
+      },
+      "clv_bets_to_resolve": 385,
       "clv_ci95": [
-        -0.8527,
+        -0.8978,
         4.875
       ],
       "excluded_in_play_rows": 0,
@@ -946,7 +974,7 @@
       "excluded_same_p_rows": 0,
       "excluded_unresolved_start_rows": 0,
       "has_edge_claim": false,
-      "mean_clv_cents": 1.6794,
+      "mean_clv_cents": 1.4656,
       "n_bets": 131,
       "n_candidates": 51,
       "n_clv": 131,
@@ -968,29 +996,43 @@
       "roi": -0.032,
       "segment_groups": 26,
       "segments": 26,
-      "share_clv_positive": 0.4122,
+      "share_clv_positive": 0.4046,
       "sport": "f1",
       "staked": 40.0,
       "why_not_yet": "needs 199 more settled bets (has 101, needs 300); needs 97 more settled games (has 3, needs 100); the bets are spread over too few games to be independent evidence; pnl interval [-0.0400, -0.0300] is entirely below zero; pnl interval [-0.1800, 0.5400] includes zero; shadow rows carry no stake and cannot support an edge claim"
     },
     "nba": {
+      "by_side": {
+        "no": {
+          "hit_rate": 0.6088,
+          "n": 1991,
+          "n_settled": 1925,
+          "net_cents_per_contract": -1.4145
+        },
+        "yes": {
+          "hit_rate": 0.4762,
+          "n": 660,
+          "n_settled": 630,
+          "net_cents_per_contract": -7.7048
+        }
+      },
       "clv_bets_to_resolve": 0,
       "clv_ci95": [
-        0.1926,
-        0.4847
+        0.1909,
+        0.4866
       ],
       "excluded_in_play_rows": 386,
       "excluded_legacy_total_rows": 0,
       "excluded_same_p_rows": 0,
       "excluded_unresolved_start_rows": 0,
       "has_edge_claim": false,
-      "mean_clv_cents": 0.3369,
-      "n_bets": 2648,
-      "n_candidates": 2460,
-      "n_clv": 2648,
-      "n_games": 207,
-      "n_logged": 2648,
-      "n_open": 93,
+      "mean_clv_cents": 0.3361,
+      "n_bets": 2651,
+      "n_candidates": 2463,
+      "n_clv": 2651,
+      "n_games": 208,
+      "n_logged": 2651,
+      "n_open": 96,
       "n_rows_no_game_id": 0,
       "n_settled": 2555,
       "n_settled_bets": 2555,
@@ -1006,29 +1048,43 @@
       "roi": -0.0198,
       "segment_groups": 349,
       "segments": 15,
-      "share_clv_positive": 0.1174,
+      "share_clv_positive": 0.1173,
       "sport": "nba",
       "staked": 3830.0,
       "why_not_yet": "superseded by a newer model; a fresh sample is required; pnl interval [-1.0800, 1.0800] includes zero; shadow rows carry no stake and cannot support an edge claim; pnl interval [-0.4700, -0.4600] is entirely below zero"
     },
     "nfl": {
+      "by_side": {
+        "no": {
+          "hit_rate": null,
+          "n": 32,
+          "n_settled": 0,
+          "net_cents_per_contract": null
+        },
+        "yes": {
+          "hit_rate": 0.4681,
+          "n": 236,
+          "n_settled": 188,
+          "net_cents_per_contract": -13.5106
+        }
+      },
       "clv_bets_to_resolve": 0,
       "clv_ci95": [
-        -1.6021,
-        0.6059
+        -1.6167,
+        0.5769
       ],
       "excluded_in_play_rows": 75,
       "excluded_legacy_total_rows": 2,
       "excluded_same_p_rows": 94,
       "excluded_unresolved_start_rows": 0,
       "has_edge_claim": false,
-      "mean_clv_cents": -0.4981,
-      "n_bets": 267,
-      "n_candidates": 209,
-      "n_clv": 265,
+      "mean_clv_cents": -0.5226,
+      "n_bets": 268,
+      "n_candidates": 210,
+      "n_clv": 266,
       "n_games": 52,
-      "n_logged": 267,
-      "n_open": 79,
+      "n_logged": 268,
+      "n_open": 80,
       "n_rows_no_game_id": 0,
       "n_settled": 188,
       "n_settled_bets": 188,
@@ -1044,12 +1100,26 @@
       "roi": -0.0726,
       "segment_groups": 9,
       "segments": 9,
-      "share_clv_positive": 0.3283,
+      "share_clv_positive": 0.3346,
       "sport": "nfl",
       "staked": 350.0,
       "why_not_yet": "needs 112 more settled bets (has 188, needs 300); needs 63 more settled games (has 37, needs 100); the bets are spread over too few games to be independent evidence; pnl interval [-0.4609, -0.0164] is entirely below zero; pnl interval [-0.4825, 0.1525] includes zero; shadow rows carry no stake and cannot support an edge claim"
     },
     "pl": {
+      "by_side": {
+        "no": {
+          "hit_rate": null,
+          "n": 7,
+          "n_settled": 0,
+          "net_cents_per_contract": null
+        },
+        "yes": {
+          "hit_rate": 0.2381,
+          "n": 23,
+          "n_settled": 21,
+          "net_cents_per_contract": -26.7619
+        }
+      },
       "clv_bets_to_resolve": 6,
       "clv_ci95": [
         -1.4857,
@@ -1088,6 +1158,7 @@
       "why_not_yet": "needs 279 more settled bets (has 21, needs 300); needs 83 more settled games (has 17, needs 100); the bets are spread over too few games to be independent evidence; pnl interval [-0.4800, -0.4600] is entirely below zero; pnl interval [-0.3325, 0.2787] includes zero"
     }
   },
+  "replay": {},
   "schema_version": 1,
   "scoring": {
     "docs": {
@@ -2828,7 +2899,7 @@
       "hit_rate": 0.0,
       "is_current_model": true,
       "max_drawdown": 0.11,
-      "mean_clv_cents": 1.75,
+      "mean_clv_cents": 1.25,
       "mean_edge_points": 5.955,
       "mean_market_price": 0.045,
       "mean_model_p": 0.1145,
@@ -2853,7 +2924,7 @@
       "realised_edge_points": -11.455,
       "roi": null,
       "segment": "f1:pole:0.10-0.20",
-      "share_clv_positive": 0.75,
+      "share_clv_positive": 0.25,
       "sport": "f1",
       "staked": 0.0
     },
@@ -2881,7 +2952,7 @@
       "hit_rate": 0.8,
       "is_current_model": true,
       "max_drawdown": 0.8,
-      "mean_clv_cents": 0.0,
+      "mean_clv_cents": -0.6667,
       "mean_edge_points": 15.676,
       "mean_market_price": 0.708,
       "mean_model_p": 0.1152,
@@ -2976,7 +3047,7 @@
       "clv_bets_to_resolve": null,
       "clv_ci95": [
         -11.0,
-        -1.0
+        6.0
       ],
       "disqualifying": [
         "only 2 settled bets, need 300",
@@ -2987,7 +3058,7 @@
       "hit_rate": 0.0,
       "is_current_model": true,
       "max_drawdown": 0.31,
-      "mean_clv_cents": -5.0,
+      "mean_clv_cents": -2.6667,
       "mean_edge_points": 8.515,
       "mean_market_price": 0.145,
       "mean_model_p": 0.2401,
@@ -3012,7 +3083,7 @@
       "realised_edge_points": -24.015,
       "roi": null,
       "segment": "f1:race_podium:0.20-0.30",
-      "share_clv_positive": 0.0,
+      "share_clv_positive": 0.3333,
       "sport": "f1",
       "staked": 0.0
     },
@@ -3029,7 +3100,7 @@
       "clv_bets_to_resolve": null,
       "clv_ci95": [
         -11.0,
-        -3.0
+        -2.0
       ],
       "disqualifying": [
         "only 1 settled bets, need 300",
@@ -3040,7 +3111,7 @@
       "hit_rate": 0.0,
       "is_current_model": true,
       "max_drawdown": 0.2,
-      "mean_clv_cents": -7.0,
+      "mean_clv_cents": -6.5,
       "mean_edge_points": 15.39,
       "mean_market_price": 0.18,
       "mean_model_p": 0.3539,
@@ -3081,7 +3152,7 @@
       },
       "clv_bets_to_resolve": null,
       "clv_ci95": [
-        -6.0,
+        -8.0,
         0.0
       ],
       "disqualifying": [
@@ -3093,7 +3164,7 @@
       "hit_rate": 0.0,
       "is_current_model": true,
       "max_drawdown": 0.73,
-      "mean_clv_cents": -2.0,
+      "mean_clv_cents": -2.6667,
       "mean_edge_points": 7.195,
       "mean_market_price": 0.345,
       "mean_model_p": 0.437,
@@ -3187,7 +3258,7 @@
       "clv_bets_to_resolve": null,
       "clv_ci95": [
         -17.0,
-        -0.5
+        -2.0
       ],
       "disqualifying": [
         "only 4 settled bets, need 300",
@@ -3198,7 +3269,7 @@
       "hit_rate": 0.5,
       "is_current_model": true,
       "max_drawdown": 0.76,
-      "mean_clv_cents": -6.0,
+      "mean_clv_cents": -7.0,
       "mean_edge_points": 17.3625,
       "mean_market_price": 0.43,
       "mean_model_p": 0.3764,
@@ -3239,7 +3310,7 @@
       },
       "clv_bets_to_resolve": null,
       "clv_ci95": [
-        0.0,
+        0.5,
         15.75
       ],
       "disqualifying": [
@@ -3251,7 +3322,7 @@
       "hit_rate": 0.5,
       "is_current_model": true,
       "max_drawdown": 0.7,
-      "mean_clv_cents": 5.4,
+      "mean_clv_cents": 5.6,
       "mean_edge_points": 22.235,
       "mean_market_price": 0.4975,
       "mean_model_p": 0.2601,
@@ -3276,7 +3347,7 @@
       "realised_edge_points": 23.985,
       "roi": null,
       "segment": "f1:race_podium:0.70-0.80",
-      "share_clv_positive": 0.4,
+      "share_clv_positive": 0.6,
       "sport": "f1",
       "staked": 0.0
     },
@@ -3556,7 +3627,7 @@
       "clv_bets_to_resolve": null,
       "clv_ci95": [
         -11.75,
-        0.3333
+        0.0
       ],
       "disqualifying": [
         "only 3 settled bets, need 300",
@@ -3566,7 +3637,7 @@
       "hit_rate": 1.0,
       "is_current_model": true,
       "max_drawdown": 0.0,
-      "mean_clv_cents": -3.6,
+      "mean_clv_cents": -4.2,
       "mean_edge_points": 16.0367,
       "mean_market_price": 0.69,
       "mean_model_p": 0.1296,
@@ -3608,7 +3679,7 @@
       "clv_bets_to_resolve": null,
       "clv_ci95": [
         -6.0,
-        18.8571
+        18.5714
       ],
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
@@ -3620,7 +3691,7 @@
       "hit_rate": 0.5,
       "is_current_model": true,
       "max_drawdown": 1.4,
-      "mean_clv_cents": 8.8,
+      "mean_clv_cents": 8.4,
       "mean_edge_points": 18.4675,
       "mean_market_price": 0.725,
       "mean_model_p": 0.0728,
@@ -3712,10 +3783,10 @@
         "n_settled": 17,
         "widening": null
       },
-      "clv_bets_to_resolve": 158,
+      "clv_bets_to_resolve": 159,
       "clv_ci95": [
-        -0.3333,
-        5.1429
+        -0.5,
+        5.0
       ],
       "disqualifying": [
         "only 17 settled bets, need 300",
@@ -3726,7 +3797,7 @@
       "hit_rate": 0.0,
       "is_current_model": true,
       "max_drawdown": 2.48,
-      "mean_clv_cents": 2.3889,
+      "mean_clv_cents": 2.3333,
       "mean_edge_points": 10.8894,
       "mean_market_price": 0.1341,
       "mean_model_p": 0.4842,
@@ -3751,7 +3822,7 @@
       "realised_edge_points": -48.4247,
       "roi": null,
       "segment": "f1:top10:0.20-0.30",
-      "share_clv_positive": 0.6111,
+      "share_clv_positive": 0.5556,
       "sport": "f1",
       "staked": 0.0
     },
@@ -3874,7 +3945,7 @@
       "clv_bets_to_resolve": null,
       "clv_ci95": [
         -6.0,
-        0.0
+        -5.5
       ],
       "disqualifying": [
         "only 2 settled bets, need 300",
@@ -3885,7 +3956,7 @@
       "hit_rate": 0.0,
       "is_current_model": true,
       "max_drawdown": 0.79,
-      "mean_clv_cents": -3.0,
+      "mean_clv_cents": -5.75,
       "mean_edge_points": 12.77,
       "mean_market_price": 0.375,
       "mean_model_p": 0.5187,
@@ -4043,7 +4114,7 @@
       "hit_rate": 1.0,
       "is_current_model": true,
       "max_drawdown": 0.0,
-      "mean_clv_cents": -3.2,
+      "mean_clv_cents": -4.4,
       "mean_edge_points": 13.9933,
       "mean_market_price": 0.67,
       "mean_model_p": 0.1701,
@@ -6711,7 +6782,7 @@
       },
       "clv_bets_to_resolve": null,
       "clv_ci95": [
-        0.0,
+        -3.0,
         0.0
       ],
       "disqualifying": [
@@ -6723,7 +6794,7 @@
       "hit_rate": null,
       "is_current_model": true,
       "max_drawdown": 0.0,
-      "mean_clv_cents": 0.0,
+      "mean_clv_cents": -1.0,
       "mean_edge_points": null,
       "mean_market_price": null,
       "mean_model_p": null,
@@ -8529,8 +8600,8 @@
       },
       "clv_bets_to_resolve": null,
       "clv_ci95": [
-        4.0,
-        4.0
+        6.0,
+        6.0
       ],
       "disqualifying": [
         "shadow rows carry no stake and cannot support an edge claim",
@@ -8542,7 +8613,7 @@
       "hit_rate": null,
       "is_current_model": true,
       "max_drawdown": 0.0,
-      "mean_clv_cents": 4.0,
+      "mean_clv_cents": 6.0,
       "mean_edge_points": null,
       "mean_market_price": null,
       "mean_model_p": null,
@@ -17123,11 +17194,11 @@
       "mean_market_price": null,
       "mean_model_p": null,
       "model_fingerprint": "v20261118134238",
-      "n_bets": 7,
-      "n_clv": 7,
-      "n_games": 3,
-      "n_logged": 7,
-      "n_open": 7,
+      "n_bets": 8,
+      "n_clv": 8,
+      "n_games": 4,
+      "n_logged": 8,
+      "n_open": 8,
       "n_rows_no_game_id": 0,
       "n_settled": 0,
       "n_settled_bets": 0,
@@ -18629,11 +18700,11 @@
       "mean_market_price": null,
       "mean_model_p": null,
       "model_fingerprint": "v20261118134238",
-      "n_bets": 6,
-      "n_clv": 6,
-      "n_games": 3,
-      "n_logged": 6,
-      "n_open": 6,
+      "n_bets": 8,
+      "n_clv": 8,
+      "n_games": 4,
+      "n_logged": 8,
+      "n_open": 8,
       "n_rows_no_game_id": 0,
       "n_settled": 0,
       "n_settled_bets": 0,
@@ -22831,10 +22902,10 @@
         "n_settled": 11,
         "widening": null
       },
-      "clv_bets_to_resolve": 148,
+      "clv_bets_to_resolve": 141,
       "clv_ci95": [
-        -4.6667,
-        2.6667
+        -4.5833,
+        2.5
       ],
       "disqualifying": [
         "only 11 settled bets, need 300",
@@ -22884,10 +22955,10 @@
         "n_settled": 8,
         "widening": null
       },
-      "clv_bets_to_resolve": 104,
+      "clv_bets_to_resolve": 97,
       "clv_ci95": [
-        0.1111,
-        6.25
+        0.5333,
+        6.4
       ],
       "disqualifying": [
         "only 8 settled bets, need 300",
@@ -22898,7 +22969,7 @@
       "hit_rate": 0.375,
       "is_current_model": true,
       "max_drawdown": 2.16,
-      "mean_clv_cents": 2.5333,
+      "mean_clv_cents": 2.9333,
       "mean_edge_points": 6.0252,
       "mean_market_price": 0.5713,
       "mean_model_p": 0.6515,
@@ -22923,7 +22994,7 @@
       "realised_edge_points": -27.6502,
       "roi": -0.0346,
       "segment": "nfl:moneyline:0.60-0.70",
-      "share_clv_positive": 0.4,
+      "share_clv_positive": 0.5333,
       "sport": "nfl",
       "staked": 50.0
     },
@@ -22937,10 +23008,10 @@
         "n_settled": 4,
         "widening": null
       },
-      "clv_bets_to_resolve": 90,
+      "clv_bets_to_resolve": 85,
       "clv_ci95": [
         0.3636,
-        7.4444
+        7.1818
       ],
       "disqualifying": [
         "only 4 settled bets, need 300",
@@ -22950,7 +23021,7 @@
       "hit_rate": 1.0,
       "is_current_model": true,
       "max_drawdown": 0.0,
-      "mean_clv_cents": 4.0,
+      "mean_clv_cents": 3.9,
       "mean_edge_points": 5.2343,
       "mean_market_price": 0.66,
       "mean_model_p": 0.7323,
@@ -22975,7 +23046,7 @@
       "realised_edge_points": 26.7657,
       "roi": 0.032,
       "segment": "nfl:moneyline:0.70-0.80",
-      "share_clv_positive": 0.5,
+      "share_clv_positive": 0.6,
       "sport": "nfl",
       "staked": 40.0
     },
@@ -23042,10 +23113,10 @@
         "n_settled": 45,
         "widening": null
       },
-      "clv_bets_to_resolve": 21,
+      "clv_bets_to_resolve": 20,
       "clv_ci95": [
-        -3.9268,
-        -0.1061
+        -3.9512,
+        -0.1786
       ],
       "disqualifying": [
         "only 45 settled bets, need 300",
@@ -23056,7 +23127,7 @@
       "hit_rate": 0.2222,
       "is_current_model": true,
       "max_drawdown": 11.38,
-      "mean_clv_cents": -1.9403,
+      "mean_clv_cents": -1.9851,
       "mean_edge_points": 8.231,
       "mean_market_price": 0.4509,
       "mean_model_p": 0.5532,
@@ -23097,8 +23168,8 @@
       },
       "clv_bets_to_resolve": 0,
       "clv_ci95": [
-        -1.971,
-        0.7241
+        -2.0,
+        0.65
       ],
       "disqualifying": [
         "only 37 settled bets, need 300",
@@ -23109,16 +23180,16 @@
       "hit_rate": 0.4865,
       "is_current_model": true,
       "max_drawdown": 4.59,
-      "mean_clv_cents": -0.55,
+      "mean_clv_cents": -0.6066,
       "mean_edge_points": 10.6352,
       "mean_market_price": 0.52,
       "mean_model_p": 0.6464,
       "model_fingerprint": null,
-      "n_bets": 60,
-      "n_clv": 60,
+      "n_bets": 61,
+      "n_clv": 61,
       "n_games": 29,
-      "n_logged": 60,
-      "n_open": 23,
+      "n_logged": 61,
+      "n_open": 24,
       "n_rows_no_game_id": 0,
       "n_settled": 37,
       "n_settled_bets": 37,
@@ -23134,7 +23205,7 @@
       "realised_edge_points": -15.9865,
       "roi": -0.0396,
       "segment": "nfl:total:0.60-0.70",
-      "share_clv_positive": 0.4,
+      "share_clv_positive": 0.377,
       "sport": "nfl",
       "staked": 50.0
     },
@@ -23150,8 +23221,8 @@
       },
       "clv_bets_to_resolve": 0,
       "clv_ci95": [
-        -1.75,
-        0.5
+        -1.7556,
+        0.4146
       ],
       "disqualifying": [
         "only 39 settled bets, need 300",
@@ -23162,7 +23233,7 @@
       "hit_rate": 0.5641,
       "is_current_model": true,
       "max_drawdown": 6.33,
-      "mean_clv_cents": -0.5319,
+      "mean_clv_cents": -0.5957,
       "mean_edge_points": 11.6858,
       "mean_market_price": 0.6059,
       "mean_model_p": 0.7428,
@@ -23187,7 +23258,7 @@
       "realised_edge_points": -17.8653,
       "roi": -0.1205,
       "segment": "nfl:total:0.70-0.80",
-      "share_clv_positive": 0.4043,
+      "share_clv_positive": 0.383,
       "sport": "nfl",
       "staked": 20.0
     },
@@ -23203,8 +23274,8 @@
       },
       "clv_bets_to_resolve": 0,
       "clv_ci95": [
-        -1.1389,
-        0.3448
+        -1.1429,
+        0.2727
       ],
       "disqualifying": [
         "only 27 settled bets, need 300",
@@ -23215,7 +23286,7 @@
       "hit_rate": 0.5926,
       "is_current_model": true,
       "max_drawdown": 6.28,
-      "mean_clv_cents": -0.3824,
+      "mean_clv_cents": -0.4118,
       "mean_edge_points": 8.8774,
       "mean_market_price": 0.7493,
       "mean_model_p": 0.8566,
@@ -23240,7 +23311,7 @@
       "realised_edge_points": -26.396,
       "roi": null,
       "segment": "nfl:total:0.80-0.90",
-      "share_clv_positive": 0.2059,
+      "share_clv_positive": 0.2353,
       "sport": "nfl",
       "staked": 0.0
     },
@@ -23256,8 +23327,8 @@
       },
       "clv_bets_to_resolve": 0,
       "clv_ci95": [
-        -0.7826,
-        0.5
+        -0.7895,
+        0.375
       ],
       "disqualifying": [
         "only 16 settled bets, need 300",
@@ -23268,7 +23339,7 @@
       "hit_rate": 0.75,
       "is_current_model": true,
       "max_drawdown": 2.74,
-      "mean_clv_cents": -0.2105,
+      "mean_clv_cents": -0.2632,
       "mean_edge_points": 6.9715,
       "mean_market_price": 0.8525,
       "mean_model_p": 0.9335,
@@ -23765,11 +23836,62 @@
       "staked": 0
     }
   },
+  "shadow_rules": {
+    "cfb-moneyline-early-disagreement": {
+      "days_since_prereg": 0.0,
+      "description": "CFB moneyline: bet early on model-market disagreement >= 0.10. From hub#185 angle 1 / probe B (cfb:moneyline drifted toward the model by +2.99 pts [+1.90, +4.09] over 275 markets, the only cell above a taker round trip). Registered before any of the data it is judged on.",
+      "fill_rate": null,
+      "id": "cfb-moneyline-early-disagreement",
+      "kill": null,
+      "kill_limits": {
+        "max_days": 60,
+        "max_trades": 300
+      },
+      "market": "moneyline",
+      "n_games": 0,
+      "n_no": 0,
+      "n_settled": 0,
+      "n_trades": 0,
+      "n_yes": 0,
+      "prereg_at": "2026-11-19T05:00:00Z",
+      "promotion": {
+        "eligible": false,
+        "legs": {
+          "n": false,
+          "net_low95": false,
+          "paired_low95": false
+        },
+        "min_n": 150,
+        "n": 0,
+        "n_games": 0,
+        "net_cents_per_contract": null,
+        "net_ci95": null,
+        "paired_cents_per_contract": null,
+        "paired_ci95": null
+      },
+      "sport": "cfb",
+      "status": "collecting"
+    }
+  },
   "totals": {
+    "by_side": {
+      "no": {
+        "hit_rate": 0.6053,
+        "n": 2280,
+        "n_settled": 1984,
+        "net_cents_per_contract": -1.3614
+      },
+      "yes": {
+        "hit_rate": 0.4579,
+        "n": 2656,
+        "n_settled": 2376,
+        "net_cents_per_contract": -7.8519
+      }
+    },
     "clv_bets_to_resolve": 0,
     "clv_ci95": [
-      0.0599,
-      0.4085
+      0.0548,
+      0.4052
     ],
     "excluded_by_sport": {
       "in_play": {
@@ -23786,12 +23908,13 @@
     "excluded_in_play_closing_observations": 93,
     "excluded_in_play_rows": 656,
     "excluded_legacy_total_rows": 2,
+    "excluded_replay_rows": 0,
     "excluded_same_p_rows": 94,
     "excluded_unresolved_start_rows": 0,
-    "mean_clv_cents": 0.2268,
-    "n_candidates": 4502,
-    "n_clv": 4930,
-    "n_logged": 4932,
+    "mean_clv_cents": 0.2193,
+    "n_candidates": 4506,
+    "n_clv": 4934,
+    "n_logged": 4936,
     "n_settled": 4360,
     "n_shadow": 430,
     "segment_groups": 422,
