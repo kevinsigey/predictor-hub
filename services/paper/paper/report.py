@@ -29,11 +29,12 @@ import sys
 from pathlib import Path
 
 from . import closing as closing_mod
+from . import rules as rules_mod
 from . import segments as segments_mod
 from . import sources, stats
 from .segments import MIN_SETTLED_GAMES_FLOOR
-from .ledger import (KIND_CANDIDATE, KIND_SHADOW, STATUS_SETTLED, Ledger, resolved,
-                     resolved_scores)
+from .ledger import (KIND_CANDIDATE, KIND_SHADOW, REPLAY_HAIRCUT, STATUS_SETTLED, Ledger,
+                     is_replay, resolved, resolved_scores)
 
 REPORT_PATH = Path("data/paper/report.json")
 
@@ -289,6 +290,19 @@ def _why_not_yet(reasons: list[str], *, n_settled: int, min_settled: int,
     return "; ".join(parts) if parts else "; ".join(reasons)
 
 
+def by_side(rows: list[dict]) -> dict:
+    """YES vs NO: rows bought, settled, hit rate and mean net c/contract per side."""
+    out = {}
+    for side in ("yes", "no"):
+        part = [r for r in rows if (r.get("side") or "yes") == side]
+        settled = [r for r in part if r.get("status") == STATUS_SETTLED]
+        pnls = [100.0 * float(r.get("pnl_per_contract") or 0.0) for r in settled]
+        out[side] = {"n": len(part), "n_settled": len(settled),
+                     "hit_rate": round(sum(1 for r in settled if _won(r)) / len(settled), 4) if settled else None,
+                     "net_cents_per_contract": round(stats.fmean(pnls), 4) if pnls else None}
+    return out
+
+
 def _per_sport(rows: list[dict], table: dict[str, dict], gate_cfg: dict,
                legacy_by_sport: dict[str, int]) -> dict[str, dict]:
     """One roll-up per sport, for the page's per-sport rows.
@@ -350,6 +364,7 @@ def _per_sport(rows: list[dict], table: dict[str, dict], gate_cfg: dict,
         unique_reasons = _collapse_reasons(reasons)
         out[sport] = {
             "sport": sport,
+            "by_side": by_side(sport_rows),
             "n_logged": len(sport_rows),
             "n_candidates": sum(1 for r in sport_rows if r.get("kind") != KIND_SHADOW),
             "n_shadow": sum(1 for r in sport_rows if r.get("kind") == KIND_SHADOW),
@@ -742,11 +757,47 @@ def set_aside_fills(rows: list[dict], fill_obs: dict[str, list[tuple]] | None = 
     }
 
 
+def replay_vs_forward(replay: list[dict], forward: list[dict]) -> dict:
+    """Per sport:market, replay net c/contract after the 1c haircut beside forward.
+
+    Replay is never evidence on its own: this block only states whether the
+    two point the same way. Intervals resample games (`stats.cluster_ci`).
+    """
+    def cell(part, haircut):
+        groups: dict[str, list[float]] = {}
+        for r in part:
+            if r.get("status") == STATUS_SETTLED and isinstance(r.get("pnl_per_contract"), (int, float)):
+                groups.setdefault(game_id_of(r) or str(r.get("ticker")), []).append(
+                    100.0 * (float(r["pnl_per_contract"]) - haircut))
+        c = stats.cluster_ci(groups, by_row=True)
+        return (sum(len(v) for v in groups.values()), None if c is None else round(c["mean"], 4),
+                None if c is None else [round(c["ci"][0], 4), round(c["ci"][1], 4)])
+
+    out = {}
+    for key in sorted({f"{r.get('sport')}:{r.get('market')}" for r in replay}):
+        pick = lambda rows: [r for r in rows if f"{r.get('sport')}:{r.get('market')}" == key]
+        n_r, m_r, ci_r = cell(pick(replay), REPLAY_HAIRCUT)
+        n_f, m_f, ci_f = cell([r for r in pick(forward) if r.get("kind") != KIND_SHADOW], 0.0)
+        out[key] = {"replay_n": n_r, "replay_net_cents_per_contract": m_r, "replay_ci95": ci_r,
+                    "replay_haircut_cents": REPLAY_HAIRCUT * 100.0,
+                    "forward_n": n_f, "forward_net_cents_per_contract": m_f, "forward_ci95": ci_f,
+                    "agree_in_direction": None if m_r is None or m_f is None else (m_r > 0) == (m_f > 0)}
+    return out
+
+
 def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
           score_rows: list[dict] | None = None, sport_gate_cfg: dict | None = None,
           starts: dict | None = None, closing_in_play: int = 0,
-          fill_obs: dict[str, list[tuple]] | None = None) -> dict:
+          fill_obs: dict[str, list[tuple]] | None = None,
+          rule_specs: list[dict] | None = None, rule_kills: list[dict] | None = None,
+          now=None, replay_rows: list[dict] | None = None) -> dict:
     # Precedence: in-play, unresolved start, same-p, then legacy total; each row is counted once.
+    # Replayed rows never rank a segment or promote a rule; they are only ever
+    # shown beside forward results (`replay`), after the haircut.
+    n_replay = sum(1 for r in rows if is_replay(r))
+    replay = list(replay_rows or []) + [r for r in rows if is_replay(r)]
+    rows = [r for r in rows if not is_replay(r)]
+    score_rows = [r for r in (score_rows or []) if not is_replay(r)]
     rows, kept_scores, excluded = apply_exclusions(rows, list(score_rows or []), starts)
     rows, fills = set_aside_fills(rows, fill_obs)
     n_legacy = sum(1 for r in rows if _is_legacy_total(r))
@@ -816,7 +867,18 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
                                   ("same_p", "excluded_same_p_rows")):
                 entry[field] = excluded[reason].get(sport, 0)
 
+    # Preregistered shadow rules: read-only over the ledger, never the gate.
+    from datetime import datetime, timezone
+    shadow_rules, new_kills = rules_mod.evaluate(
+        rule_specs or [], rule_kills or [], scores,
+        [r for r in rows if r.get("kind") != KIND_SHADOW and r.get("status") == STATUS_SETTLED],
+        now=now or datetime.now(timezone.utc), promotion_test=promotion_test)
+
     return {
+        "shadow_rules": shadow_rules,
+        # Written to rules/kills.jsonl by main(), then dropped from the file.
+        "_new_rule_kills": new_kills,
+        "replay": replay_vs_forward(replay, rows),
         "scoring": build_scoring(points),
         "verdicts": build_verdicts(rows, points, scores, sport_cfg),
         "schema_version": 1,
@@ -830,6 +892,8 @@ def build(rows: list[dict], *, closing: dict[str, dict], gate_cfg: dict,
             "segment_groups": len(table),
             "segments_qualifying": sum(1 for v in table.values() if v["qualifies_for_edge_claim"]),
             "excluded_legacy_total_rows": n_legacy,
+            "excluded_replay_rows": n_replay,
+            "by_side": by_side(rows),
             "excluded_in_play_rows": sum(excluded["in_play"].values()),
             "excluded_unresolved_start_rows": sum(excluded["unresolved_start"].values()),
             "excluded_same_p_rows": sum(excluded["same_p"].values()),
@@ -876,6 +940,16 @@ def render(report: dict) -> str:
         )
     if not report["segments"]:
         lines.append("(no segments: the ledger is empty)")
+    for key, cell in sorted((report.get("replay") or {}).items()):
+        lines.append(f"replay {key}: {cell['replay_net_cents_per_contract']} c/contract after a 1c haircut "
+                     f"(n {cell['replay_n']}) vs forward {cell['forward_net_cents_per_contract']} "
+                     f"(n {cell['forward_n']}); same direction: {cell['agree_in_direction']}")
+    for rid, card in sorted((report.get("shadow_rules") or {}).items()):
+        promo = card["promotion"]
+        lines.append(f"shadow rule {rid}: {card['status']}, {card['n_trades']} trades "
+                     f"({card['n_settled']} settled, {card['n_games']} games) since {card['prereg_at']}; "
+                     f"net {promo['net_cents_per_contract']} c/contract {promo['net_ci95']}, "
+                     f"paired {promo['paired_cents_per_contract']} {promo['paired_ci95']}")
     totals = report["totals"]
     lines += [
         "",
@@ -936,10 +1010,15 @@ def main(argv: list[str] | None = None) -> int:
                         help="Kalshi line .jsonl.gz files to read closing prices from")
     parser.add_argument("--closing", default=closing_mod.DEFAULT_PATH,
                         help="near-kickoff observations from scripts/paper_close.py")
+    parser.add_argument("--rules", default=str(rules_mod.RULES_DIR),
+                        help="preregistered shadow rule specs and their kills.jsonl")
+    parser.add_argument("--backtest", default="data/paper/backtest.jsonl",
+                        help="replayed rows (paper/backtest.py); shown beside forward only")
     parser.add_argument("--out", default=str(REPORT_PATH))
     args = parser.parse_args(argv)
 
     config = segments_mod.load(args.segments)
+    specs, kills = rules_mod.load(args.rules)
     ledger = Ledger(args.ledger)
     rows = resolved(ledger)
 
@@ -966,7 +1045,10 @@ def main(argv: list[str] | None = None) -> int:
 
     report = build(rows, closing=closing, gate_cfg=segments_mod.gate(config),
                    score_rows=resolved_scores(ledger), sport_gate_cfg=segments_mod.sport_gate(config),
-                   starts=starts, closing_in_play=closing_in_play, fill_obs=fill_obs)
+                   starts=starts, closing_in_play=closing_in_play, fill_obs=fill_obs,
+                   rule_specs=specs, rule_kills=kills,
+                   replay_rows=Ledger(args.backtest).candidates())
+    rules_mod.append_kills(report.pop("_new_rule_kills"), args.rules)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(_public(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")

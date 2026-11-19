@@ -53,6 +53,17 @@ KIND_SHADOW = "shadow"
 RECORD_SCORE = "score"
 
 
+#: Net cents/contract taken off every replayed (backtest-derived) row: a replay
+#: picks its price from a candle after the fact and pays no queue or latency.
+REPLAY_HAIRCUT = 0.01
+
+
+def is_replay(row: dict) -> bool:
+    """A backtest/replay row. It may be shown beside forward results, never
+    used to rank a segment or promote a rule on its own."""
+    return bool(row.get("backtest") or row.get("exploratory") or row.get("replay"))
+
+
 def score_id(*, sport: str, game_id: str, market: str, ticker: str | None = None) -> str:
     """Stable id of a score row: one per (game, market); F1 adds the driver's ticker.
 

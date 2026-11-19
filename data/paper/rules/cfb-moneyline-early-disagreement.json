@@ -1,0 +1,25 @@
+{
+  "id": "cfb-moneyline-early-disagreement",
+  "description": "CFB moneyline: bet early on model-market disagreement >= 0.10. From hub#185 angle 1 / probe B (cfb:moneyline drifted toward the model by +2.99 pts [+1.90, +4.09] over 275 markets, the only cell above a taker round trip). Registered before any of the data it is judged on.",
+  "source": "docs/research/2026-11-18-data-coverage-and-angles.md (hub#185), angle 1",
+  "population": "score",
+  "sport": "cfb",
+  "market": "moneyline",
+  "rule": "For every CFB moneyline score row (the earliest pre-start observation of the home team's YES rung at which the model's generated_at is provably before the price) decided after prereg_at and at least 24 hours before the site's true start, with a two-sided book whose YES ask minus YES bid is at most 8 points: d = model_p - mid, mid = (YES bid + YES ask) / 2. If |d| >= 0.10, buy one contract of the model's side (YES when d > 0, NO when d < 0) at that side's own ask (NO ask = 1 - YES bid) and hold it to Kalshi's settlement. Asks at or below 1c or at or above 99c do not trade.",
+  "parameters": {
+    "min_disagreement": 0.10,
+    "min_lead_hours": 24,
+    "max_spread_points": 8.0
+  },
+  "metric": "Net cents per contract: payout (100 if the side bought wins, else 0) minus the ask paid minus the Kalshi taker fee on one contract (paper/fees.py), settled trades only, clustered by game.",
+  "written_at": "2026-11-18T07:00:00Z",
+  "prereg_at": "2026-11-19T05:00:00Z",
+  "promotion": {
+    "min_n": 150,
+    "test": "report.promotion_test: n >= 150 settled trades AND game-clustered low95 of net c/contract > 0 AND paired low95 > 0 against the live model's settled cfb:moneyline candidate rows on the same games (0 where the live model did not bet). Passing makes the rule 'eligible' only; promotion to live needs Kevin's approval."
+  },
+  "kill": {
+    "max_days": 60,
+    "max_trades": 300
+  }
+}
