@@ -1,0 +1,11 @@
+[Unit]
+Description=NBA predictor: back up the tracking DB and check it is not damaged
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+ExecStart=/opt/stack/bin/nba-db-backup
+# 67 MB copy plus two quick_checks; seconds, but do not let a slow disk hang the timer.
+TimeoutStartSec=15min

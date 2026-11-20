@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Nightly consistent copy of the NBA tracking DB, taken BEFORE the 13:40 UTC
+# rescore that writes it, plus an integrity check of the live file.
+#
+# On 2026-10-26 the rescore died mid-commit ("disk I/O error") and left the DB
+# malformed, so every API read raised "database disk image is malformed" and the
+# live games page showed "We couldn't load this week's games". There was no
+# backup: recovery was a .recover gamble, and the 30,777 predictions came back
+# only because page-level recovery happened to work.
+#
+# Two jobs, both from the running container so there is no second SQLite build
+# to keep in sync:
+#   1. quick_check the LIVE file, so damage shows up here at 12:30 rather than on
+#      the games page;
+#   2. copy it with SQLite's online backup API (safe while the API reads), check
+#      the copy, keep the newest $KEEP.
+#
+# Run by systemd/nba-db-backup.timer.
+set -euo pipefail
+STACK_DIR=${STACK_DIR:-/opt/stack}
+CONTAINER=${CONTAINER:-stack-nba-1}
+KEEP=${KEEP:-14}
+
+docker exec -i "$CONTAINER" python - "$KEEP" <<'PY'
+import os
+import pathlib
+import sqlite3
+import sys
+import time
+
+keep = int(sys.argv[1])
+src = pathlib.Path(os.environ.get("TRACKING_DB_PATH", "/app/data/tracking/tracking.db"))
+out_dir = src.parent / "backups"
+out_dir.mkdir(parents=True, exist_ok=True)
+
+# Catch a damaged live DB here, before a visitor does.
+live = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
+verdict = live.execute("pragma quick_check").fetchone()[0]
+if verdict != "ok":
+    raise SystemExit(f"live tracking DB is damaged: {verdict}")
+
+# Write under a name rotation does not count; it only becomes tracking-*.db once the copy
+# passed quick_check, so a failed or timed-out run can never push out a verified backup.
+dst = out_dir / f"tracking-{time.strftime('%Y%m%dT%H%M%S')}.db"
+tmp = dst.with_suffix(".db.partial")
+try:
+    copy = sqlite3.connect(tmp)
+    live.backup(copy)
+    copy.close()
+    live.close()
+    check = sqlite3.connect(f"file:{tmp}?mode=ro", uri=True)
+    verdict = check.execute("pragma quick_check").fetchone()[0]
+    check.close()
+    if verdict != "ok":
+        raise SystemExit(f"backup is damaged: {tmp}")
+    tmp.rename(dst)
+finally:
+    tmp.unlink(missing_ok=True)
+
+# The volume is owned by deploy (uid 1001) on the host; this runs as root in the
+# container, so hand the files back or every future inspection needs sudo.
+try:
+    os.chown(dst, 1001, 1001)
+    os.chown(out_dir, 1001, 1001)
+except OSError:
+    pass
+
+for old in sorted(out_dir.glob("tracking-*.db"))[:-keep]:
+    old.unlink()
+print(f"backed up {src} -> {dst}")
+PY
