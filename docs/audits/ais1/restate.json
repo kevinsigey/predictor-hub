@@ -1,0 +1,63 @@
+{
+  "pl": {
+    "reads": 5,
+    "sentences": 10,
+    "restating": 2,
+    "rate": 0.2,
+    "detail": [
+      {
+        "id": "OVT3-AkFm-y0Mv",
+        "sentence": "Chelsea's goals scored per match ranks #3 of 20 and Man United's goals conceded per match ranks #13.",
+        "numbers": [
+          "3"
+        ],
+        "qualitative": false
+      },
+      {
+        "id": "r7v5-AkFp-jMva",
+        "sentence": "Coventry's attack strength ranks #16 of 20 and Sunderland's defence strength ranks #3.",
+        "numbers": [
+          "3"
+        ],
+        "qualitative": false
+      }
+    ]
+  },
+  "f1": {
+    "reads": 5,
+    "sentences": 5,
+    "restating": 0,
+    "rate": 0.0,
+    "detail": []
+  },
+  "nba": {
+    "reads": 5,
+    "sentences": 8,
+    "restating": 0,
+    "rate": 0.0,
+    "detail": []
+  },
+  "nfl": {
+    "reads": 5,
+    "sentences": 14,
+    "restating": 1,
+    "rate": 0.07142857142857142,
+    "detail": [
+      {
+        "id": "2026_08_ARI_DAL",
+        "sentence": "DAL's passing offence ranks #4 of 32 and ARI's pass defence ranks #30.",
+        "numbers": [
+          "4"
+        ],
+        "qualitative": false
+      }
+    ]
+  },
+  "cfb": {
+    "reads": 5,
+    "sentences": 0,
+    "restating": 0,
+    "rate": null,
+    "detail": []
+  }
+}
