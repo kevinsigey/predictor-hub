@@ -13,40 +13,43 @@ const TELEGRAM_URL = "https://api.telegram.org/bot{token}/sendMessage";
 export const TELEGRAM_MAX_CHARS = 4096;
 const BAD_CONCLUSIONS = new Set(["failure", "timed_out", "startup_failure"]);
 
-// One row per workflow that matters. Max ages come from each workflow's own cron:
-// roughly twice the gap between runs, with a six-hour floor so a check that has
-// not finished in that long is worth waking someone up for.
+// One row per workflow that matters. GitHub delays scheduled runs by hours and
+// skips some slots outright (on 2026-11-23 the 14:10 Kalshi collectors ran at
+// ~20:40 or not at all; NFL's every-3h snapshot landed every 6-11h), so max ages
+// follow the OBSERVED cadence, not the cron: 18h for jobs that fire every few
+// hours, 26h for twice-daily jobs, 36h for daily jobs. The per-row comments
+// below give each cron as written.
 export const CHECKS = [
   // 30 12 / 30 17 / 45 21 / 30 1 UTC: 11h overnight gap, so 12h.
-  { repo: "NBA_Predictor", workflow: "collect-injuries.yml", maxAgeHours: 12 },
+  { repo: "NBA_Predictor", workflow: "collect-injuries.yml", maxAgeHours: 26 },
   // 30 15 and 15 23 UTC: ~8h apart.
-  { repo: "NBA_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 16 },
+  { repo: "NBA_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 26 },
   // Daily at 12:00 UTC: one missed day plus the six-hour check grace.
-  { repo: "NBA_Predictor", workflow: "refresh-data.yml", maxAgeHours: 30 },
+  { repo: "NBA_Predictor", workflow: "refresh-data.yml", maxAgeHours: 36 },
   // Every 6h (0 */6): two missed slots.
-  { repo: "NBA_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 12 },
+  { repo: "NBA_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 18 },
   // 10 14 and 40 22 UTC: ~8h apart.
-  { repo: "NFL_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 16 },
+  { repo: "NFL_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 26 },
   // Every 3h (20 */3), so two missed slots is six hours.
-  { repo: "NFL_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 6 },
+  { repo: "NFL_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 18 },
   // 10 14 and 40 01 UTC: ~11h apart.
-  { repo: "CFB_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 16 },
+  { repo: "CFB_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 26 },
   // Every 4h (25 */4), so two missed slots is eight hours.
-  { repo: "CFB_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 8 },
+  { repo: "CFB_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 18 },
   // 10 14 and 40 22 UTC: ~8h apart.
-  { repo: "PL_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 16 },
+  { repo: "PL_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 26 },
   // Every 20 min on matchdays, daily at 08:00 on quiet days: one missed day plus grace.
-  { repo: "PL_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 30 },
+  { repo: "PL_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 36 },
   // 10 14 and 40 22 UTC: ~8h apart.
-  { repo: "F1_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 16 },
+  { repo: "F1_Predictor", workflow: "collect-kalshi-lines.yml", maxAgeHours: 26 },
   // Every 6h (40 */6), with 20-minute race-weekend runs on top.
-  { repo: "F1_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 12 },
+  { repo: "F1_Predictor", workflow: "refresh-public-snapshot.yml", maxAgeHours: 18 },
   // 30 8 on Mon/Tue only: twice a week, so there is no useful max age. Failure only.
   { repo: "F1_Predictor", workflow: "retrain-after-race.yml", maxAgeHours: null },
   // 45 15 and 35 23 UTC: ~8h apart.
-  { repo: "predictor-hub", workflow: "paper-log.yml", maxAgeHours: 16 },
+  { repo: "predictor-hub", workflow: "paper-log.yml", maxAgeHours: 26 },
   // 20 4 / 20 12 / 20 20 UTC: every 8h.
-  { repo: "predictor-hub", workflow: "paper-settle.yml", maxAgeHours: 16 },
+  { repo: "predictor-hub", workflow: "paper-settle.yml", maxAgeHours: 26 },
 ];
 
 const setting = (env, name) => (env?.[name] || "").trim();
@@ -177,7 +180,7 @@ export async function main({ fetch: http = fetch, now = new Date(), env = proces
   }
   const sent = await sendTelegram(formatMessage(problems, now), { fetch: http, env });
   log(sent ? `sent ${problems.length} problem(s) to telegram` : "telegram send failed");
-  return failedChecks;
+  return sent ? failedChecks : 1; // a lost alert must show as a failed job
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

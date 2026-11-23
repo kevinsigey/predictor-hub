@@ -251,3 +251,15 @@ test("a rejected telegram post does not fail the job", async () => {
   assert.equal(await sendTelegram("hello", { fetch, env: telegramConfig }), false);
   assert.equal(telegramCalls.length, 1);
 });
+
+test("a telegram send that fails makes the job fail, so a lost alert is still visible", async () => {
+  const { fetch, telegramCalls } = makeFetch({
+    telegramStatus: 500,
+    overrides: { "NBA_Predictor/refresh-data.yml": { runs: [run({ conclusion: "failure" })] } },
+  });
+  const lines = [];
+  const code = await main({ fetch, now: NOW, env: telegramConfig, log: (line) => lines.push(line) });
+  assert.equal(telegramCalls.length, 1);
+  assert.equal(code, 1);
+  assert.deepEqual(lines, ["telegram send failed"]);
+});
