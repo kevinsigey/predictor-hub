@@ -1,0 +1,32 @@
+# Tell Kevin the same day when a scheduled sports refresh breaks. The script
+# checks the other repos' Actions runs plus our own paper workflows and sends
+# one Telegram message only when something is wrong; a green check is silent.
+#
+# Cron is every six hours, matching the script's smallest max age, so a job
+# that simply stopped firing is caught within one missed slot.
+name: Sports health check
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  actions: read   # read workflow runs across the sibling repos
+  contents: read  # check out this repo's script
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24" # plain Node, no dependencies
+      - name: Check scheduled runs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node scripts/sports-health.mjs
