@@ -1149,7 +1149,7 @@
       "excluded_in_play_rows": 9,
       "excluded_legacy_total_rows": 0,
       "excluded_same_p_rows": 0,
-      "excluded_unresolved_start_rows": 12,
+      "excluded_unresolved_start_rows": 14,
       "has_edge_claim": false,
       "mean_clv_cents": -0.7073,
       "n_bets": 41,
@@ -24713,7 +24713,7 @@
   },
   "shadow_rules": {
     "cfb-moneyline-early-disagreement": {
-      "days_since_prereg": 4.4,
+      "days_since_prereg": 4.79,
       "description": "CFB moneyline: bet early on model-market disagreement >= 0.10. From hub#185 angle 1 / probe B (cfb:moneyline drifted toward the model by +2.99 pts [+1.90, +4.09] over 275 markets, the only cell above a taker round trip). Registered before any of the data it is judged on.",
       "fill_rate": null,
       "id": "cfb-moneyline-early-disagreement",
@@ -24779,7 +24779,7 @@
         "nfl": 94
       },
       "unresolved_start": {
-        "pl": 12
+        "pl": 14
       }
     },
     "excluded_in_play_closing_observations": 93,
@@ -24787,7 +24787,7 @@
     "excluded_legacy_total_rows": 2,
     "excluded_replay_rows": 0,
     "excluded_same_p_rows": 94,
-    "excluded_unresolved_start_rows": 12,
+    "excluded_unresolved_start_rows": 14,
     "mean_clv_cents": 0.1094,
     "n_candidates": 5122,
     "n_clv": 5594,
